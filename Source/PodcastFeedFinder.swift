@@ -29,7 +29,7 @@ public class PodcastFeedFinder {
         }
     }
     
-    func getMediaURLForPodcastLink(link: NSURL, completion: (PodcastFeedFinderResult -> ())) {
+    public func getMediaURLForPodcastLink(link: NSURL, completion: (PodcastFeedFinderResult -> ())) {
         let components = NSURLComponents(URL: link, resolvingAgainstBaseURL: false)
         guard let fragment = components?.fragment where fragment.hasPrefix("episodeGuid")  else {
             print("No episode guid in link")
