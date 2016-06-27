@@ -52,6 +52,8 @@ class PodcastFeedFinderTests: XCTestCase {
             XCTAssertEqual(result.mediaURL.absoluteString, "http://traffic.libsyn.com/billburr/MMPC_6-27-16.mp3")
             XCTAssertEqual(result.artworkURL.absoluteString, "http://static.libsyn.com/p/assets/4/7/9/b/479b005a1d9a6fe6/Burr_image-062.jpg")
             XCTAssertEqual(result.duration, 4506)
+            XCTAssertEqual(result.artist, "Monday Morning Podcast")
+            XCTAssertEqual(result.title, "Monday Morning Podcast 6-27-16")
         }
         
         waitForExpectationsWithTimeout(5.0) { (error) in

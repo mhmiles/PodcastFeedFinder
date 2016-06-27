@@ -13,9 +13,11 @@ import Fuzi
 typealias FeedFinderCompletion = (NSURL -> ())
 
 public struct PodcastFeedFinderResult {
-    let mediaURL: NSURL
-    let artworkURL: NSURL
-    let duration: NSTimeInterval
+    public let mediaURL: NSURL
+    public let artworkURL: NSURL
+    public let duration: NSTimeInterval
+    public let artist: String
+    public let title: String
 }
 
 public class PodcastFeedFinder {
@@ -42,19 +44,22 @@ public class PodcastFeedFinder {
             Alamofire.request(.GET, feedURL.absoluteString).response(completionHandler: { (request, response, data, error) in
                 let feed = try! XMLDocument(data: data!)
                 
+                print(feed)
                 if let itemNode = feed.firstChild(xpath: "*/item[guid = '\(episodeGuid)']"),
                     mediaURLString = itemNode.firstChild(xpath: "enclosure")?.attr("url"),
                     mediaURL = NSURL(string: mediaURLString),
                     artworkURLString = itemNode.firstChild(xpath: "itunes:image")?.attr("href"),
                     artworkURL = NSURL(string: artworkURLString),
-                    durationString = itemNode.firstChild(xpath: "itunes:duration")?.stringValue
+                    durationString = itemNode.firstChild(xpath: "itunes:duration")?.stringValue,
+                    artist = feed.firstChild(xpath: "channel/title")?.stringValue,
+                    title = itemNode.firstChild(xpath: "title")?.stringValue
                 {
                     let durationComponents = durationString.componentsSeparatedByString(":")
                     let duration = durationComponents.enumerate().reduce(NSTimeInterval(0), combine: { (acc, value) -> NSTimeInterval in
                         return acc + NSTimeInterval(value.element)!*pow(60, Double(durationComponents.count-value.index-1))
                     })
                     
-                    completion(PodcastFeedFinderResult(mediaURL: mediaURL, artworkURL: artworkURL, duration: duration))
+                    completion(PodcastFeedFinderResult(mediaURL: mediaURL, artworkURL: artworkURL, duration: duration, artist: artist, title: title))
                 }
             })
         }
