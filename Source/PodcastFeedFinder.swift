@@ -19,7 +19,7 @@ public struct PodcastFeedFinderResult {
 }
 
 public class PodcastFeedFinder {
-    static let sharedFinder = PodcastFeedFinder()
+    public static let sharedFinder = PodcastFeedFinder()
     
     func getFeedURLForPodcastLink(link: NSURL, completion: (NSURL -> ())) {
         if let podcastID = getPodcastIDFromURL(link) {
