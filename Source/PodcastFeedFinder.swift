@@ -20,18 +20,26 @@ public struct PodcastFeedFinderResult {
     public let title: String
 }
 
+public enum FeedFinderError: ErrorType {
+    case PodcastNotFoundByName
+    case PodcastNotFoundByID
+    case PodcastIDNotFound
+    case EpisodeGUIDNotFound
+    case AlamofireError(NSError)
+}
+
 public class PodcastFeedFinder {
     public static let sharedFinder = PodcastFeedFinder()
     
     func getFeedURLForPodcastLink(link: NSURL, completion: (NSURL -> ())) {
-        if let podcastID = getPodcastIDFromURL(link) {
+        if let podcastID = try? getPodcastIDFromURL(link) {
             getFeedURLForID(podcastID, completion: completion)
         } else if let podcastName = link.URLByDeletingLastPathComponent?.lastPathComponent {
             getFeedURLForPodcastName(podcastName, completion: completion)
         }
     }
     
-    public func getMediaURLForPodcastLink(link: NSURL, completion: (PodcastFeedFinderResult -> ())) {
+    public func getMediaURLForPodcastLink(link: NSURL, completion: (PodcastFeedFinderResult -> ())) throws {
         let components = NSURLComponents(URL: link, resolvingAgainstBaseURL: false)
         guard let fragment = components?.fragment where fragment.hasPrefix("episodeGuid")  else {
             print("No episode guid in link")
@@ -43,8 +51,7 @@ public class PodcastFeedFinder {
         getFeedURLForPodcastLink(link) { (feedURL) in
             Alamofire.request(.GET, feedURL.absoluteString).response(completionHandler: { (request, response, data, error) in
                 let feed = try! XMLDocument(data: data!)
-                
-                print(feed)
+
                 if let itemNode = feed.firstChild(xpath: "*/item[guid = '\(episodeGuid)']"),
                     mediaURLString = itemNode.firstChild(xpath: "enclosure")?.attr("url"),
                     mediaURL = NSURL(string: mediaURLString),
@@ -65,12 +72,12 @@ public class PodcastFeedFinder {
         }
     }
     
-    internal func getPodcastIDFromURL(url: NSURL) -> String? {
+    internal func getPodcastIDFromURL(url: NSURL) throws -> String {
         if let lastComponent = url.lastPathComponent {
             return lastComponent.substringFromIndex(lastComponent.startIndex.advancedBy(2))
         }
         
-        return nil
+        throw FeedFinderError.PodcastIDNotFound
     }
     
     internal func getFeedURLForID(podcastID: String, completion: FeedFinderCompletion) {
