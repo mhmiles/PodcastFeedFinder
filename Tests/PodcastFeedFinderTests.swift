@@ -49,11 +49,11 @@ class PodcastFeedFinderTests: XCTestCase {
         
         try! feedFinder.getMediaURLForPodcastLink(testURL) { (result) in
             expectation.fulfill()
-            XCTAssertEqual(result.mediaURL.absoluteString, "http://traffic.libsyn.com/billburr/MMPC_6-27-16.mp3")
-            XCTAssertEqual(result.artworkURL.absoluteString, "http://static.libsyn.com/p/assets/4/7/9/b/479b005a1d9a6fe6/Burr_image-062.jpg")
-            XCTAssertEqual(result.duration, 4506)
-            XCTAssertEqual(result.artist, "Monday Morning Podcast")
-            XCTAssertEqual(result.title, "Monday Morning Podcast 6-27-16")
+            XCTAssertEqual(result.mediaURL.absoluteString, "http://c.espnradio.com/s:J1X3L/audio/2880082/fivethirtyeightelections_2016-07-21-000322.64k.mp3?ad_params=zones%3DPreroll%2CPreroll2%2CMidroll%2CMidroll2%2CMidroll3%2CMidroll4%2CMidroll5%2CMidroll6%2CPostroll%2CPostroll2%7Cstation_id%3D4278")
+            XCTAssertEqual(result.artworkURL.absoluteString, "http://a.espncdn.com/combiner/i?img=i/espnradio/logos/538_elections_1x1.png?w=1400&h=1400")
+            XCTAssertEqual(result.duration, 863)
+            XCTAssertEqual(result.artist, "FiveThirtyEight Elections")
+            XCTAssertEqual(result.title, "RNC Emergency Pod! Boos Cruz: 7/20/16")
         }
         
         waitForExpectationsWithTimeout(5.0) { (error) in
