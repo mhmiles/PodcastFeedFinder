@@ -55,7 +55,7 @@ public class PodcastFeedFinder {
                 if let itemNode = feed.firstChild(xpath: "*/item[guid = '\(episodeGuid)']"),
                     mediaURLString = itemNode.firstChild(xpath: "enclosure")?.attr("url"),
                     mediaURL = NSURL(string: mediaURLString),
-                    artworkURLString = itemNode.firstChild(xpath: "itunes:image")?.attr("href"),
+                    artworkURLString = (itemNode.firstChild(css: "itunes:image") ?? feed.firstChild(css: "itunes:image")!).attr("href"),
                     artworkURL = NSURL(string: artworkURLString),
                     durationString = itemNode.firstChild(xpath: "itunes:duration")?.stringValue,
                     artist = feed.firstChild(xpath: "channel/title")?.stringValue,

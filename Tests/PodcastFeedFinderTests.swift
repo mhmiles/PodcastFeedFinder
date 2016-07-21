@@ -12,8 +12,8 @@ import XCTest
 class PodcastFeedFinderTests: XCTestCase {
     
     let feedFinder = PodcastFeedFinder()
-    let testURL = NSURL(string: "https://Podcast.apple.com/us/podcast/monday-morning-podcast/id480486345?mt=2#episodeGuid=65d71aecadf5018ca01948e5b753980c")!
-    let testFeedURL = NSURL(string: "http://billburr.libsyn.com/rss")
+    let testURL = NSURL(string: "https://itunes.apple.com/us/podcast/fivethirtyeight-elections/id1077418457?mt=2#episodeGuid=http%3A%2F%2Fespn.go.com%2Fespnradio%2Fpodcast%2F_%2Fid%2F17117009")!
+    let testFeedURL = NSURL(string: "http://espn.go.com/espnradio/podcast/feeds/itunes/podCast?id=14554755")
     
     override func setUp() {
         super.setUp()
@@ -26,8 +26,8 @@ class PodcastFeedFinderTests: XCTestCase {
     }
     
     func testPodcastID() {
-        let atpID = feedFinder.getPodcastIDFromURL(testURL)
-        XCTAssertEqual(atpID, "480486345")
+        let atpID = try! feedFinder.getPodcastIDFromURL(testURL)
+        XCTAssertEqual(atpID, "1077418457")
     }
     
     func testGetFeedURL() {
@@ -47,7 +47,7 @@ class PodcastFeedFinderTests: XCTestCase {
     func testMediaURL() {
         let expectation = expectationWithDescription("Getting media URL for test URL")
         
-        feedFinder.getMediaURLForPodcastLink(testURL) { (result) in
+        try! feedFinder.getMediaURLForPodcastLink(testURL) { (result) in
             expectation.fulfill()
             XCTAssertEqual(result.mediaURL.absoluteString, "http://traffic.libsyn.com/billburr/MMPC_6-27-16.mp3")
             XCTAssertEqual(result.artworkURL.absoluteString, "http://static.libsyn.com/p/assets/4/7/9/b/479b005a1d9a6fe6/Burr_image-062.jpg")
@@ -64,7 +64,7 @@ class PodcastFeedFinderTests: XCTestCase {
     func testGetFeedByPodcastName() {
         let expectation = expectationWithDescription("Getting feed URL for test URL by podcast name")
         
-        feedFinder.getFeedURLForPodcastName("monday-morning-podcast") { (feedURL) in
+        feedFinder.getFeedURLForPodcastName("fivethirtyeight-elections") { (feedURL) in
             expectation.fulfill()
             XCTAssertEqual(feedURL, self.testFeedURL)
         }
