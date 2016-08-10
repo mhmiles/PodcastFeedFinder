@@ -12,8 +12,8 @@ import XCTest
 class PodcastFeedFinderTests: XCTestCase {
     
     let feedFinder = PodcastFeedFinder()
-    let testURL = NSURL(string: "https://itunes.apple.com/us/podcast/fivethirtyeight-elections/id1077418457?mt=2#episodeGuid=http%3A%2F%2Fespn.go.com%2Fespnradio%2Fpodcast%2F_%2Fid%2F17117009")!
-    let testFeedURL = NSURL(string: "http://espn.go.com/espnradio/podcast/feeds/itunes/podCast?id=14554755")
+    let testURL = NSURL(string: "https://itunes.apple.com/us/podcast/truehoop/id974354079?mt=2#episodeGuid=http%3A%2F%2Fwww.espn.com%2Fespnradio%2Fpodcast%2F_%2Fid%2F17204351")!
+    let testFeedURL = NSURL(string: "http://www.espn.com/espnradio/podcast/feeds/itunes/podCast?id=12426375")
     
     override func setUp() {
         super.setUp()
@@ -27,7 +27,7 @@ class PodcastFeedFinderTests: XCTestCase {
     
     func testPodcastID() {
         let atpID = try! feedFinder.getPodcastIDFromURL(testURL)
-        XCTAssertEqual(atpID, "1077418457")
+        XCTAssertEqual(atpID, "974354079")
     }
     
     func testGetFeedURL() {
@@ -49,11 +49,11 @@ class PodcastFeedFinderTests: XCTestCase {
         
         try! feedFinder.getMediaURLForPodcastLink(testURL) { (result) in
             expectation.fulfill()
-            XCTAssertEqual(result.mediaURL.absoluteString, "http://c.espnradio.com/s:J1X3L/audio/2880082/fivethirtyeightelections_2016-07-21-000322.64k.mp3?ad_params=zones%3DPreroll%2CPreroll2%2CMidroll%2CMidroll2%2CMidroll3%2CMidroll4%2CMidroll5%2CMidroll6%2CPostroll%2CPostroll2%7Cstation_id%3D4278")
-            XCTAssertEqual(result.artworkURL.absoluteString, "http://a.espncdn.com/combiner/i?img=i/espnradio/logos/538_elections_1x1.png?w=1400&h=1400")
-            XCTAssertEqual(result.duration, 863)
-            XCTAssertEqual(result.artist, "FiveThirtyEight Elections")
-            XCTAssertEqual(result.title, "RNC Emergency Pod! Boos Cruz: 7/20/16")
+            XCTAssertEqual(result.mediaURL.absoluteString, "http://play.podtrac.com/espn-truehoop/c.espnradio.com/s:J1X3L/audio/2908650/truehooptv_2016-08-02-181350.64k.mp3?ad_params=zones%3DPreroll%2CPreroll2%2CMidroll%2CMidroll2%2CMidroll3%2CMidroll4%2CMidroll5%2CMidroll6%2CPostroll%2CPostroll2%7Cstation_id%3D2776")
+            XCTAssertEqual(result.artworkURL.absoluteString, "http://a2.espncdn.com/combiner/i?img=i/espnradio/logos/truehoop_1x1.png?w=1400&h=1400")
+            XCTAssertEqual(result.duration, 3187.0)
+            XCTAssertEqual(result.artist, "TrueHoop")
+            XCTAssertEqual(result.title, "Refresh Memory: Part 1: 8/3/16")
         }
         
         waitForExpectationsWithTimeout(5.0) { (error) in
@@ -64,7 +64,7 @@ class PodcastFeedFinderTests: XCTestCase {
     func testGetFeedByPodcastName() {
         let expectation = expectationWithDescription("Getting feed URL for test URL by podcast name")
         
-        feedFinder.getFeedURLForPodcastName("fivethirtyeight-elections") { (feedURL) in
+        feedFinder.getFeedURLForPodcastName("TrueHoop") { (feedURL) in
             expectation.fulfill()
             XCTAssertEqual(feedURL, self.testFeedURL)
         }
