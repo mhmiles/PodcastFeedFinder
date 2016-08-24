@@ -12,8 +12,8 @@ import XCTest
 class PodcastFeedFinderTests: XCTestCase {
     
     let feedFinder = PodcastFeedFinder()
-    let testURL = NSURL(string: "https://itunes.apple.com/us/podcast/truehoop/id974354079?mt=2#episodeGuid=http%3A%2F%2Fwww.espn.com%2Fespnradio%2Fpodcast%2F_%2Fid%2F17204351")!
-    let testFeedURL = NSURL(string: "http://www.espn.com/espnradio/podcast/feeds/itunes/podCast?id=12426375")
+    let testURL = URL(string: "https://itunes.apple.com/us/podcast/truehoop/id974354079?mt=2#episodeGuid=http%3A%2F%2Fwww.espn.com%2Fespnradio%2Fpodcast%2F_%2Fid%2F17204351")!
+    let testFeedURL = URL(string: "http://www.espn.com/espnradio/podcast/feeds/itunes/podCast?id=12426375")
     
     override func setUp() {
         super.setUp()
@@ -31,7 +31,7 @@ class PodcastFeedFinderTests: XCTestCase {
     }
     
     func testGetFeedURL() {
-        let expectation = expectationWithDescription("Getting feed URL for test URL")
+        let expectation = self.expectation(description: "Getting feed URL for test URL")
         
         feedFinder.getFeedURLForPodcastLink(testURL) { (feedURL) in
             expectation.fulfill()
@@ -39,13 +39,13 @@ class PodcastFeedFinderTests: XCTestCase {
             XCTAssertEqual(feedURL, self.testFeedURL)
         }
         
-        waitForExpectationsWithTimeout(5.0) { (error) in
+        waitForExpectations(timeout: 5.0) { (error) in
             print(error)
         }
     }
     
     func testMediaURL() {
-        let expectation = expectationWithDescription("Getting media URL for test URL")
+        let expectation = self.expectation(description: "Getting media URL for test URL")
         
         try! feedFinder.getMediaURLForPodcastLink(testURL) { (result) in
             expectation.fulfill()
@@ -56,20 +56,20 @@ class PodcastFeedFinderTests: XCTestCase {
             XCTAssertEqual(result.title, "Refresh Memory: Part 1: 8/3/16")
         }
         
-        waitForExpectationsWithTimeout(5.0) { (error) in
+        waitForExpectations(timeout: 5.0) { (error) in
             print(error)
         }
     }
     
     func testGetFeedByPodcastName() {
-        let expectation = expectationWithDescription("Getting feed URL for test URL by podcast name")
+        let expectation = self.expectation(description: "Getting feed URL for test URL by podcast name")
         
         feedFinder.getFeedURLForPodcastName("TrueHoop") { (feedURL) in
             expectation.fulfill()
             XCTAssertEqual(feedURL, self.testFeedURL)
         }
         
-        waitForExpectationsWithTimeout(5.0) { (error) in
+        waitForExpectations(timeout: 5.0) { (error) in
             print(error)
         }
     }

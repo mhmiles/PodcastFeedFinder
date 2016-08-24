@@ -10,60 +10,61 @@ import Foundation
 import Alamofire
 import Fuzi
 
-typealias FeedFinderCompletion = (NSURL -> ())
+typealias FeedFinderCompletion = ((URL) -> ())
 
 public struct PodcastFeedFinderResult {
-    public let mediaURL: NSURL
-    public let artworkURL: NSURL
-    public let duration: NSTimeInterval
+    public let mediaURL: URL
+    public let artworkURL: URL
+    public let duration: TimeInterval
     public let artist: String
     public let title: String
 }
 
-public enum FeedFinderError: ErrorType {
-    case PodcastNotFoundByName
-    case PodcastNotFoundByID
-    case PodcastIDNotFound
-    case EpisodeGUIDNotFound
-    case AlamofireError(NSError)
+public enum FeedFinderError: Error {
+    case podcastNotFoundByName
+    case podcastNotFoundByID
+    case podcastIDNotFound
+    case episodeGUIDNotFound
+    case alamofireError(NSError)
 }
 
-public class PodcastFeedFinder {
-    public static let sharedFinder = PodcastFeedFinder()
+open class PodcastFeedFinder {
+    open static let sharedFinder = PodcastFeedFinder()
     
-    func getFeedURLForPodcastLink(link: NSURL, completion: (NSURL -> ())) {
+    func getFeedURLForPodcastLink(_ link: URL, completion: ((URL) -> ())) {
         if let podcastID = try? getPodcastIDFromURL(link) {
             getFeedURLForID(podcastID, completion: completion)
-        } else if let podcastName = link.URLByDeletingLastPathComponent?.lastPathComponent {
+        } else {
+            let podcastName = link.deletingLastPathComponent().lastPathComponent
             getFeedURLForPodcastName(podcastName, completion: completion)
         }
     }
-    
-    public func getMediaURLForPodcastLink(link: NSURL, completion: (PodcastFeedFinderResult -> ())) throws {
-        let components = NSURLComponents(URL: link, resolvingAgainstBaseURL: false)
-        guard let fragment = components?.fragment where fragment.hasPrefix("episodeGuid")  else {
+
+    open func getMediaURLForPodcastLink(_ link: URL, completion: ((PodcastFeedFinderResult) -> ())) throws {
+        let components = URLComponents(url: link, resolvingAgainstBaseURL: false)
+        guard let fragment = components?.fragment , fragment.hasPrefix("episodeGuid")  else {
             print("No episode guid in link")
             return
         }
         
-        let episodeGuid = fragment.substringFromIndex(fragment.startIndex.advancedBy("episodeGuid=".characters.count))
+        let episodeGuid = fragment.substring(from: fragment.characters.index(fragment.startIndex, offsetBy: "episodeGuid=".characters.count))
         
         getFeedURLForPodcastLink(link) { (feedURL) in
-            Alamofire.request(.GET, feedURL.absoluteString).response(completionHandler: { (request, response, data, error) in
+            Alamofire.request(feedURL.absoluteString, withMethod: .get).response(completionHandler: { (request, response, data, error) in
                 let feed = try! XMLDocument(data: data!)
 
                 if let itemNode = feed.firstChild(xpath: "*/item[guid = '\(episodeGuid)']"),
-                    mediaURLString = itemNode.firstChild(xpath: "enclosure")?.attr("url"),
-                    mediaURL = NSURL(string: mediaURLString),
-                    artworkURLString = (itemNode.firstChild(css: "itunes:image") ?? feed.firstChild(css: "itunes:image")!).attr("href"),
-                    artworkURL = NSURL(string: artworkURLString),
-                    durationString = itemNode.firstChild(xpath: "itunes:duration")?.stringValue,
-                    artist = feed.firstChild(xpath: "channel/title")?.stringValue,
-                    title = itemNode.firstChild(xpath: "title")?.stringValue
+                    let mediaURLString = itemNode.firstChild(xpath: "enclosure")?.attr("url"),
+                    let mediaURL = URL(string: mediaURLString),
+                    let artworkURLString = (itemNode.firstChild(css: "itunes:image") ?? feed.firstChild(css: "itunes:image")!).attr("href"),
+                    let artworkURL = URL(string: artworkURLString),
+                    let durationString = itemNode.firstChild(xpath: "itunes:duration")?.stringValue,
+                    let artist = feed.firstChild(xpath: "channel/title")?.stringValue,
+                    let title = itemNode.firstChild(xpath: "title")?.stringValue
                 {
-                    let durationComponents = durationString.componentsSeparatedByString(":")
-                    let duration = durationComponents.enumerate().reduce(NSTimeInterval(0), combine: { (acc, value) -> NSTimeInterval in
-                        return acc + NSTimeInterval(value.element)!*pow(60, Double(durationComponents.count-value.index-1))
+                    let durationComponents = durationString.components(separatedBy: ":")
+                    let duration = durationComponents.enumerated().reduce(TimeInterval(0), { (acc, value) -> TimeInterval in
+                        return acc + TimeInterval(value.element)!*pow(60, Double(durationComponents.count-value.offset-1))
                     })
                     
                     completion(PodcastFeedFinderResult(mediaURL: mediaURL, artworkURL: artworkURL, duration: duration, artist: artist, title: title))
@@ -72,40 +73,47 @@ public class PodcastFeedFinder {
         }
     }
     
-    internal func getPodcastIDFromURL(url: NSURL) throws -> String {
-        if let lastComponent = url.lastPathComponent {
-            return lastComponent.substringFromIndex(lastComponent.startIndex.advancedBy(2))
+    internal func getPodcastIDFromURL(_ url: URL) throws -> String {
+        let lastComponent = url.lastPathComponent
+        
+        if lastComponent.hasPrefix("id") {
+            return lastComponent.substring(from: lastComponent.characters.index(lastComponent.startIndex, offsetBy: 2))
         }
         
-        throw FeedFinderError.PodcastIDNotFound
+        throw FeedFinderError.podcastIDNotFound
     }
     
-    internal func getFeedURLForID(podcastID: String, completion: FeedFinderCompletion) {
-         Alamofire.request(.GET, "https://itunes.apple.com/lookup", parameters: ["id": podcastID], encoding: .URL, headers: nil).responseJSON { (response) in
+    internal func getFeedURLForID(_ podcastID: String, completion: FeedFinderCompletion) {
+        Alamofire.request("https://itunes.apple.com/lookup", withMethod: .get, parameters: ["id": podcastID], encoding: .url, headers: nil).responseJSON { (response) in
             switch response.result {
-            case .Success(let JSON):
-                if let result = (JSON["results"] as? NSArray)?.firstObject as? NSDictionary, feedURLString = result["feedUrl"] as? String, feedURL = NSURL(string: feedURLString) {
+            case .success(let JSON as [String: Any]):
+                if let result = (JSON["results"] as? NSArray)?.firstObject as? NSDictionary, let feedURLString = result["feedUrl"] as? String, let feedURL = URL(string: feedURLString) {
                     completion(feedURL)
                 }
                 
-            case .Failure:
+            case .failure:
                 print("ERROR")
+            default:
+                abort()
            }
         }
     }
     
-    internal func getFeedURLForPodcastName(name: String, completion: FeedFinderCompletion) {
-        Alamofire.request(.GET, "https://itunes.apple.com/search", parameters: ["term": name], encoding: .URL, headers: nil).responseJSON { (response) in
+    internal func getFeedURLForPodcastName(_ name: String, completion: FeedFinderCompletion) {
+        Alamofire.request("https://itunes.apple.com/search", withMethod: .get, parameters: ["term": name], encoding: .url, headers: nil).responseJSON { (response) in
             switch response.result {
-            case .Success(let JSON):
-                if let results = JSON["results"] as? [NSDictionary], result = results.filter({ $0["kind"] as? String == "podcast" }).first, feedURLString = result["feedUrl"] as? String, feedURL = NSURL(string: feedURLString) {
+            case .success(let JSON as [String: Any]):
+                if let results = JSON["results"] as? [NSDictionary], let result = results.filter({ $0["kind"] as? String == "podcast" }).first, let feedURLString = result["feedUrl"] as? String, let feedURL = URL(string: feedURLString) {
                     completion(feedURL)
                 } else {
                     
                 }
                 
-            case .Failure:
+            case .failure:
                 print("ERROR")
+                
+            default:
+                abort()
             }
         }
     }

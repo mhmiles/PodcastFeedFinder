@@ -1,2 +1,2 @@
-github "Alamofire/Alamofire" ~> 3.4
-github "cezheng/Fuzi" "9c9d6be"
+github "Alamofire/Alamofire" "swift3"
+github "mhmiles/Fuzi" "da8a7a8"
