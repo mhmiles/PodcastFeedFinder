@@ -31,7 +31,7 @@ public enum FeedFinderError: Error {
 open class PodcastFeedFinder {
     open static let sharedFinder = PodcastFeedFinder()
     
-    func getFeedURLForPodcastLink(_ link: URL, completion: ((URL) -> ())) {
+    func getFeedURLForPodcastLink(_ link: URL, completion: @escaping ((URL) -> ())) {
         if let podcastID = try? getPodcastIDFromURL(link) {
             getFeedURLForID(podcastID, completion: completion)
         } else {
@@ -40,7 +40,7 @@ open class PodcastFeedFinder {
         }
     }
 
-    open func getMediaURLForPodcastLink(_ link: URL, completion: ((PodcastFeedFinderResult) -> ())) throws {
+    open func getMediaURLForPodcastLink(_ link: URL, completion: @escaping ((PodcastFeedFinderResult) -> ())) throws {
         let components = URLComponents(url: link, resolvingAgainstBaseURL: false)
         guard let fragment = components?.fragment , fragment.hasPrefix("episodeGuid")  else {
             print("No episode guid in link")
@@ -83,7 +83,7 @@ open class PodcastFeedFinder {
         throw FeedFinderError.podcastIDNotFound
     }
     
-    internal func getFeedURLForID(_ podcastID: String, completion: FeedFinderCompletion) {
+    internal func getFeedURLForID(_ podcastID: String, completion: @escaping FeedFinderCompletion) {
         Alamofire.request("https://itunes.apple.com/lookup", withMethod: .get, parameters: ["id": podcastID], encoding: .url, headers: nil).responseJSON { (response) in
             switch response.result {
             case .success(let JSON as [String: Any]):
@@ -99,7 +99,7 @@ open class PodcastFeedFinder {
         }
     }
     
-    internal func getFeedURLForPodcastName(_ name: String, completion: FeedFinderCompletion) {
+    internal func getFeedURLForPodcastName(_ name: String, completion: @escaping FeedFinderCompletion) {
         Alamofire.request("https://itunes.apple.com/search", withMethod: .get, parameters: ["term": name], encoding: .url, headers: nil).responseJSON { (response) in
             switch response.result {
             case .success(let JSON as [String: Any]):
