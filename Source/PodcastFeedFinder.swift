@@ -106,7 +106,13 @@ open class PodcastFeedFinder {
     }
     
     internal func getFeedURLForPodcastName(_ name: String, completion: @escaping FeedFinderCompletion) {
-        Alamofire.request("https://itunes.apple.com/search", method: .get, parameters: ["term": name]).responseJSON { (response) in
+      let parameters = [
+        "term": name,
+        "media": "podcast"
+        ]
+      
+        Alamofire.request("https://itunes.apple.com/search", method: .get,
+                          parameters: parameters).responseJSON { (response) in
             switch response.result {
             case .success(let JSON as [String: Any]):
                 if let results = JSON["results"] as? [NSDictionary], let result = results.filter({ $0["kind"] as? String == "podcast" }).first, let feedURLString = result["feedUrl"] as? String, let feedURL = URL(string: feedURLString) {

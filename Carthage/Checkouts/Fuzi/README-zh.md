@@ -14,14 +14,18 @@ Mattt Thompson大神的 [Ono](https://github.com/mattt/Ono)(斧) 是iOS/OSX平�
 
 > Fuzi(斧子) 大家都懂是啥意思，[Ono](https://github.com/mattt/Ono)(斧)则是`斧`这个汉字的日语读法, 因为Mattt神写出Ono是受了 [Nokogiri](http://nokogiri.org) (鋸)的启发，取了一个同类的名词向其致敬。
 
-[English](https://github.com/cezheng/Fuzi/blob/master/README.md)
-[日本語](https://github.com/cezheng/Fuzi/blob/master/README-ja.md)
+[English](README.md)
+[日本語](README-ja.md)
 
 ## 一个简单的例子
 ```swift
 let xml = "..."
+// or
+// let xmlData = <some NSData or Data>
 do {
   let document = try XMLDocument(string: xml)
+  // or
+  // let document = try XMLDocument(data: xmlData)
   
   if let root = document.root {
     // Accessing all child nodes of root element
@@ -70,7 +74,9 @@ do {
 ## 环境
 
 - iOS 8.0+ / Mac OS X 10.9+
-- Xcode 7.0+
+- Xcode 8.0+
+
+> Swift 2.3 请使用[0.4.0](../../releases/tag/0.4.0)版。
 
 
 ## 导入
@@ -82,7 +88,7 @@ platform :ios, '8.0'
 use_frameworks!
 
 target 'MyApp' do
-	pod 'Fuzi', '~> 0.3.0'
+	pod 'Fuzi', '~> 1.0.0'
 end
 ```
 
@@ -104,7 +110,7 @@ $ pod install
 在项目的根目录下创建名为 `Cartfile` 或 `Cartfile.private`的文件，并加入如下一行:
 
 ```
-github "cezheng/Fuzi" ~> 0.3.0
+github "cezheng/Fuzi" ~> 1.0.0
 ```
 然后执行如下命令:
 
@@ -117,15 +123,15 @@ $ carthage update
 2. `Build Settings`中，向`Search Paths`的`Header Search Paths`条目下添加`$(SDKROOT)/usr/include/libxml2`。
 
 
-##例子
-###XML
+## 例子
+### XML
 ```swift
 import Fuzi
 
 let xml = "..."
 do {
   // if encoding is omitted, it defaults to NSUTF8StringEncoding
-  let doc = try XMLDocument(string: html, encoding: NSUTF8StringEncoding)
+  let document = try XMLDocument(string: html, encoding: NSUTF8StringEncoding)
   if let root = document.root {
     print(root.tag)
     
@@ -143,14 +149,14 @@ do {
   // you can also use CSS selector against XMLDocument when you feels it makes sense
 } catch let error as XMLError {
   switch error {
-  case .NoError: print("wth this should not appear")
-  case .ParserFailure, .InvalidData: print(error)
-  case .LibXMLError(let code, let message):
+  case .noError: print("wth this should not appear")
+  case .parserFailure, .invalidData: print(error)
+  case .libXMLError(let code, let message):
     print("libxml error code: \(code), message: \(message)")
   }
 }
 ```
-###HTML
+### HTML
 `HTMLDocument` 是 `XMLDocument` 的子类。
 
 ```swift
@@ -193,7 +199,7 @@ do {
 }
 ```
 
-###如果觉得没必要处理异常
+### 如果觉得没必要处理异常
 
 ```swift
 import Fuzi
@@ -212,7 +218,7 @@ let doc2 = try! HTMLDocument(string: html)
 //...
 ```
 
-###我想访问文字节点
+### 我想访问文字节点
 不仅文字节点，你可以指定你想获取的任何类型的节点。
 
 ```swift
@@ -221,14 +227,14 @@ let document = ...
 document.root?.childNodes(ofTypes: [.Element, .Text, .Comment])
 ```
 
-##从Ono转移到Fuzi
+## 从Ono转移到Fuzi
 下面两个示例程序做的事情是完全一样的，通过比较能很快了解两者的异同。
 
 [Ono示例](https://github.com/mattt/Ono/blob/master/Example/main.m)
 
-[Fuzi示例](https://github.com/cezheng/Fuzi/blob/master/FuziDemo/FuziDemo/main.swift)
+[Fuzi示例](FuziDemo/FuziDemo/main.swift)
 
-###访问子节点
+### 访问子节点
 **Ono**
 
 ```objc
@@ -251,7 +257,7 @@ for element in parent.children {
 }
 doc.children(tag: tag, inNamespace:namespace)
 ```
-###迭代查询结果
+### 迭代查询结果
 **Ono**
 
 查询结果实现了`NSFastEnumeration`协议。
@@ -301,7 +307,7 @@ if let nthElement = doc.css(css)[n] {
 // total element count
 let count = doc.xpath(xpath).count
 ```
-###执行XPath函数
+### 执行XPath函数
 **Ono**
 
 ```objc
@@ -323,4 +329,4 @@ if let result = doc.eval(xpath: xpath) {
 
 ## 开源协议
 
-`Fuzi` 使用MIT许可协议。详见 [LICENSE](https://github.com/cezheng/Fuzi/blob/master/LICENSE) 。
+`Fuzi` 使用MIT许可协议。详见 [LICENSE](LICENSE) 。

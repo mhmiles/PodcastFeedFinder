@@ -13,13 +13,17 @@ Fuzi is based on a Swift port of Mattt Thompson's [Ono](https://github.com/mattt
 
 > Fuzi(斧子) means "axe", in homage to [Ono](https://github.com/mattt/Ono)(斧), which in turn is inspired by [Nokogiri](http://nokogiri.org) (鋸), which means "saw".
 
-[简体中文](https://github.com/cezheng/Fuzi/blob/master/README-zh.md)
-[日本語](https://github.com/cezheng/Fuzi/blob/master/README-ja.md)
+[简体中文](README-zh.md)
+[日本語](README-ja.md)
 ## A Quick Look
 ```swift
 let xml = "..."
+// or
+// let xmlData = <some NSData or Data>
 do {
   let document = try XMLDocument(string: xml)
+  // or
+  // let document = try XMLDocument(data: xmlData)
   
   if let root = document.root {
     // Accessing all child nodes of root element
@@ -61,7 +65,7 @@ do {
 - Simple, modern API following standard Swift conventions, no more return types like `AnyObject!` that cause unnecessary type casts
 - Customizable date and number formatters
 - Some bugs fixes
-- More convinience methods for HTML Documents
+- More convenience methods for HTML Documents
 - Access XML nodes of all types (Including text, comment, etc.)
 - Support for more CSS selectors (yet to come)
 
@@ -69,7 +73,9 @@ do {
 ## Requirements
 
 - iOS 8.0+ / Mac OS X 10.9+
-- Xcode 7.0+
+- Xcode 8.0+
+
+> Use version [0.4.0](../../releases/tag/0.4.0) for Swift 2.3.
 
 
 ## Installation
@@ -84,7 +90,7 @@ platform :ios, '8.0'
 use_frameworks!
 
 target 'MyApp' do
-	pod 'Fuzi', '~> 0.3.0'
+	pod 'Fuzi', '~> 1.0.0'
 end
 ```
 
@@ -106,7 +112,7 @@ $ pod install
 Create a `Cartfile` or `Cartfile.private` in the root directory of your project, and add the following line:
 
 ```
-github "cezheng/Fuzi" ~> 0.3.0
+github "cezheng/Fuzi" ~> 1.0.0
 ```
 Run the following command:
 
@@ -119,15 +125,15 @@ Then do the followings in Xcode:
 2. In `Build Settings`, find `Search Paths`, add `$(SDKROOT)/usr/include/libxml2` to `Header Search Paths`.
 
 
-##Usage
-###XML
+## Usage
+### XML
 ```swift
 import Fuzi
 
 let xml = "..."
 do {
   // if encoding is omitted, it defaults to NSUTF8StringEncoding
-  let doc = try XMLDocument(string: html, encoding: NSUTF8StringEncoding)
+  let document = try XMLDocument(string: html, encoding: NSUTF8StringEncoding)
   if let root = document.root {
     print(root.tag)
     
@@ -145,14 +151,14 @@ do {
   // you can also use CSS selector against XMLDocument when you feels it makes sense
 } catch let error as XMLError {
   switch error {
-  case .NoError: print("wth this should not appear")
-  case .ParserFailure, .InvalidData: print(error)
-  case .LibXMLError(let code, let message):
+  case .noError: print("wth this should not appear")
+  case .parserFailure, .invalidData: print(error)
+  case .libXMLError(let code, let message):
     print("libxml error code: \(code), message: \(message)")
   }
 }
 ```
-###HTML
+### HTML
 `HTMLDocument` is a subclass of `XMLDocument`.
 
 ```swift
@@ -195,7 +201,7 @@ do {
 }
 ```
 
-###I don't care about error handling
+### I don't care about error handling
 
 ```swift
 import Fuzi
@@ -214,7 +220,7 @@ let doc2 = try! HTMLDocument(string: html)
 //...
 ```
 
-###I want to access Text Nodes
+### I want to access Text Nodes
 Not only text nodes, you can specify what types of nodes you would like to access.
 
 ```swift
@@ -223,14 +229,14 @@ let document = ...
 document.root?.childNodes(ofTypes: [.Element, .Text, .Comment])
 ```
 
-##Migrating From Ono?
+## Migrating From Ono?
 Looking at example programs is the swiftest way to know the difference. The following 2 examples do exactly the same thing.
 
 [Ono Example](https://github.com/mattt/Ono/blob/master/Example/main.m)
 
-[Fuzi Example](https://github.com/cezheng/Fuzi/blob/master/FuziDemo/FuziDemo/main.swift)
+[Fuzi Example](FuziDemo/FuziDemo/main.swift)
 
-###Accessing children
+### Accessing children
 **Ono**
 
 ```objc
@@ -253,7 +259,7 @@ for element in parent.children {
 }
 doc.children(tag: tag, inNamespace:namespace)
 ```
-###Iterate through query results
+### Iterate through query results
 **Ono**
 
 Conforms to `NSFastEnumeration`.
@@ -304,7 +310,7 @@ if let nthElement = doc.css(css)[n] {
 let count = doc.xpath(xpath).count
 ```
 
-###Evaluating XPath Functions
+### Evaluating XPath Functions
 **Ono**
 
 ```objc
@@ -326,4 +332,4 @@ if let result = doc.eval(xpath: xpath) {
 
 ## License
 
-`Fuzi` is released under the MIT license. See [LICENSE](https://github.com/cezheng/Fuzi/blob/master/LICENSE) for details.
+`Fuzi` is released under the MIT license. See [LICENSE](LICENSE) for details.

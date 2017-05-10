@@ -18,8 +18,12 @@ Fuzi は Mattt Thompson氏の [Ono](https://github.com/mattt/Ono)(斧) に参照
 ## クイックルック
 ```swift
 let xml = "..."
+// or
+// let xmlData = <some NSData or Data>
 do {
   let document = try XMLDocument(string: xml)
+  // or
+  // let document = try XMLDocument(data: xmlData)
   
   if let root = document.root {
     // Accessing all child nodes of root element
@@ -70,8 +74,9 @@ do {
 ## 環境
 
 - iOS 8.0+ / Mac OS X 10.9+
-- Xcode 7.0+
+- Xcode 8.0+
 
+> Swift 2.3は[0.4.0](../../releases/tag/0.4.0)をご利用ください。
 
 ## インストール
 ### CocoaPodsで
@@ -82,7 +87,7 @@ platform :ios, '8.0'
 use_frameworks!
 
 target 'MyApp' do
-	pod 'Fuzi', '~> 0.3.0'
+	pod 'Fuzi', '~> 1.0.0'
 end
 ```
 
@@ -104,7 +109,7 @@ $ pod install
 プロダクトのディレクトリに`Cartfile` か `Cartfile.private`のファイルを作成し、下記の行を追加してください:
 
 ```
-github "cezheng/Fuzi" ~> 0.3.0
+github "cezheng/Fuzi" ~> 1.0.0
 ```
 そして、下記のコマンドを実行してください:
 
@@ -117,15 +122,15 @@ $ carthage update
 2. `Build Settings`で`Search Paths`の`Header Search Paths`に`$(SDKROOT)/usr/include/libxml2`を追加してください。
 
 
-##用例
-###XML
+## 用例
+### XML
 ```swift
 import Fuzi
 
 let xml = "..."
 do {
   // if encoding is omitted, it defaults to NSUTF8StringEncoding
-  let doc = try XMLDocument(string: html, encoding: NSUTF8StringEncoding)
+  let document = try XMLDocument(string: html, encoding: NSUTF8StringEncoding)
   if let root = document.root {
     print(root.tag)
     
@@ -143,14 +148,14 @@ do {
   // you can also use CSS selector against XMLDocument when you feels it makes sense
 } catch let error as XMLError {
   switch error {
-  case .NoError: print("wth this should not appear")
-  case .ParserFailure, .InvalidData: print(error)
-  case .LibXMLError(let code, let message):
+  case .noError: print("wth this should not appear")
+  case .parserFailure, .invalidData: print(error)
+  case .libXMLError(let code, let message):
     print("libxml error code: \(code), message: \(message)")
   }
 }
 ```
-###HTML
+### HTML
 `HTMLDocument` は `XMLDocument` サブクラス。
 
 ```swift
@@ -193,7 +198,7 @@ do {
 }
 ```
 
-###エラー処理なんて、どうでもいい場合
+### エラー処理なんて、どうでもいい場合
 
 ```swift
 import Fuzi
@@ -212,7 +217,7 @@ let doc2 = try! HTMLDocument(string: html)
 //...
 ```
 
-###テキストノードを取得したい
+### テキストノードを取得したい
 テキストノードだけではなく、全種類のノードは取得可能。
 
 ```swift
@@ -225,7 +230,7 @@ document.root?.childNodes(ofTypes: [.Element, .Text, .Comment])
 
 [Onoサンプル](https://github.com/mattt/Ono/blob/master/Example/main.m)
 
-[Fuziサンプル](https://github.com/cezheng/Fuzi/blob/master/FuziDemo/FuziDemo/main.swift)
+[Fuziサンプル](FuziDemo/FuziDemo/main.swift)
 
 ###子要素を取得
 **Ono**
@@ -322,4 +327,4 @@ if let result = doc.eval(xpath: xpath) {
 ```
 ## ライセンス
 
-`Fuzi` のオープンソースライセンスは MIT です。 詳しくはこちら [LICENSE](https://github.com/cezheng/Fuzi/blob/master/LICENSE) 。
+`Fuzi` のオープンソースライセンスは MIT です。 詳しくはこちら [LICENSE](LICENSE) 。

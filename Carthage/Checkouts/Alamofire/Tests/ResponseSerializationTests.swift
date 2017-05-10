@@ -26,7 +26,7 @@ import Alamofire
 import Foundation
 import XCTest
 
-private func httpURLResponse(forStatusCode statusCode: Int, headers: [String: String] = [:]) -> HTTPURLResponse {
+private func httpURLResponse(forStatusCode statusCode: Int, headers: HTTPHeaders = [:]) -> HTTPURLResponse {
     let url = URL(string: "https://httpbin.org/get")!
     return HTTPURLResponse(url: url, statusCode: statusCode, httpVersion: "HTTP/1.1", headerFields: headers)!
 }
@@ -44,7 +44,7 @@ class DataResponseSerializationTestCase: BaseTestCase {
     func testThatDataResponseSerializerSucceedsWhenDataIsNotNil() {
         // Given
         let serializer = DataRequest.dataResponseSerializer()
-        let data = "data".data(using: String.Encoding.utf8)!
+        let data = "data".data(using: .utf8)!
 
         // When
         let result = serializer.serializeResponse(nil, nil, data, nil)

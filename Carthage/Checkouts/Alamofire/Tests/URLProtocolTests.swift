@@ -78,12 +78,10 @@ class ProxyURLProtocol: URLProtocol {
     // MARK: Loading Methods
 
     override func startLoading() {
-        // rdar://26849668
-        // Hopefully will be fixed in a future seed
-        // URLProtocol had some API's that didnt make the value type conversion
-        let mutableRequest = (request.urlRequest as NSURLRequest).mutableCopy() as! NSMutableURLRequest
-        URLProtocol.setProperty(true, forKey: PropertyKeys.handledByForwarderURLProtocol, in: mutableRequest)
-        activeTask = session.dataTask(with: mutableRequest as URLRequest)
+        // rdar://26849668 - URLProtocol had some API's that didnt make the value type conversion
+        let urlRequest = (request.urlRequest! as NSURLRequest).mutableCopy() as! NSMutableURLRequest
+        URLProtocol.setProperty(true, forKey: PropertyKeys.handledByForwarderURLProtocol, in: urlRequest)
+        activeTask = session.dataTask(with: urlRequest as URLRequest)
         activeTask?.resume()
     }
 
@@ -164,9 +162,15 @@ class URLProtocolTestCase: BaseTestCase {
         XCTAssertNotNil(response?.data)
         XCTAssertNil(response?.error)
 
-        if let headers = response?.response?.allHeaderFields {
-            XCTAssertEqual(headers["request-header"] as? String, "foobar")
-            XCTAssertEqual(headers["session-configuration-header"] as? String, "foo")
+        if let headers = response?.response?.allHeaderFields as? [String: String] {
+            XCTAssertEqual(headers["request-header"], "foobar")
+
+            // Configuration headers are only passed in on iOS 9.0+
+            if #available(iOS 9.0, *) {
+                XCTAssertEqual(headers["session-configuration-header"], "foo")
+            } else {
+                XCTAssertNil(headers["session-configuration-header"])
+            }
         } else {
             XCTFail("headers should not be nil")
         }

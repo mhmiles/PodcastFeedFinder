@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name         = "Fuzi"
-  s.version      = "0.3.1"
+  s.version      = "1.0.1"
   s.license      = "MIT"
   s.summary      = "A fast & lightweight XML & HTML parser in Swift with XPath & CSS support"
   s.homepage     = "https://github.com/cezheng/Fuzi"
@@ -9,14 +9,14 @@ Pod::Spec.new do |s|
   s.source       = { :git => "https://github.com/cezheng/Fuzi.git", :tag => s.version }
 
   # cocoadocs.org might not be working
-  s.documentation_url = "http://cezheng.github.io/Fuzi"
+  # s.documentation_url = "http://cezheng.github.io/Fuzi"
   
   s.ios.deployment_target = "8.0"
   s.osx.deployment_target = "10.9"
   s.watchos.deployment_target = "2.0"
   s.tvos.deployment_target = "9.0"
 
-  s.source_files  = "Fuzi/*.swift"
+  s.source_files  = "Sources/*.swift"
   s.preserve_paths = "libxml2/*"
 
   s.requires_arc = true

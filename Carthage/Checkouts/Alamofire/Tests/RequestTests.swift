@@ -37,7 +37,7 @@ class RequestInitializationTestCase: BaseTestCase {
         // Then
         XCTAssertNotNil(request.request)
         XCTAssertEqual(request.request?.httpMethod, "GET")
-        XCTAssertEqual(request.request?.urlString, urlString)
+        XCTAssertEqual(request.request?.url?.absoluteString, urlString)
         XCTAssertNil(request.response)
     }
 
@@ -51,7 +51,7 @@ class RequestInitializationTestCase: BaseTestCase {
         // Then
         XCTAssertNotNil(request.request)
         XCTAssertEqual(request.request?.httpMethod, "GET")
-        XCTAssertNotEqual(request.request?.urlString, urlString)
+        XCTAssertNotEqual(request.request?.url?.absoluteString, urlString)
         XCTAssertEqual(request.request?.url?.query, "foo=bar")
         XCTAssertNil(request.response)
     }
@@ -67,9 +67,107 @@ class RequestInitializationTestCase: BaseTestCase {
         // Then
         XCTAssertNotNil(request.request)
         XCTAssertEqual(request.request?.httpMethod, "GET")
-        XCTAssertNotEqual(request.request?.urlString, urlString)
+        XCTAssertNotEqual(request.request?.url?.absoluteString, urlString)
         XCTAssertEqual(request.request?.url?.query, "foo=bar")
         XCTAssertEqual(request.request?.value(forHTTPHeaderField: "Authorization"), "123456")
+        XCTAssertNil(request.response)
+    }
+}
+
+// MARK: -
+
+class RequestSubclassRequestPropertyTestCase: BaseTestCase {
+    private enum AuthenticationError: Error {
+        case expiredAccessToken
+    }
+
+    private class AuthenticationAdapter: RequestAdapter {
+        func adapt(_ urlRequest: URLRequest) throws -> URLRequest {
+            throw AuthenticationError.expiredAccessToken
+        }
+    }
+
+    private var sessionManager: SessionManager!
+
+    override func setUp() {
+        super.setUp()
+
+        sessionManager = SessionManager()
+        sessionManager.startRequestsImmediately = false
+
+        sessionManager.adapter = AuthenticationAdapter()
+    }
+
+    func testDataRequestHasURLRequest() {
+        // Given
+        let urlString = "https://httpbin.org/"
+
+        // When
+        let request = sessionManager.request(urlString)
+
+        // Then
+        XCTAssertNotNil(request.request)
+        XCTAssertEqual(request.request?.httpMethod, "GET")
+        XCTAssertEqual(request.request?.url?.absoluteString, urlString)
+        XCTAssertNil(request.response)
+    }
+
+    func testDownloadRequestHasURLRequest() {
+        // Given
+        let urlString = "https://httpbin.org/"
+
+        // When
+        let request = sessionManager.download(urlString)
+
+        // Then
+        XCTAssertNotNil(request.request)
+        XCTAssertEqual(request.request?.httpMethod, "GET")
+        XCTAssertEqual(request.request?.url?.absoluteString, urlString)
+        XCTAssertNil(request.response)
+    }
+
+    func testUploadDataRequestHasURLRequest() {
+        // Given
+        let urlString = "https://httpbin.org/"
+
+        // When
+        let request = sessionManager.upload(Data(), to: urlString)
+
+        // Then
+        XCTAssertNotNil(request.request)
+        XCTAssertEqual(request.request?.httpMethod, "POST")
+        XCTAssertEqual(request.request?.url?.absoluteString, urlString)
+        XCTAssertNil(request.response)
+    }
+
+    func testUploadFileRequestHasURLRequest() {
+        // Given
+        let urlString = "https://httpbin.org/"
+        let imageURL = url(forResource: "rainbow", withExtension: "jpg")
+
+        // When
+        let request = sessionManager.upload(imageURL, to: urlString)
+
+        // Then
+        XCTAssertNotNil(request.request)
+        XCTAssertEqual(request.request?.httpMethod, "POST")
+        XCTAssertEqual(request.request?.url?.absoluteString, urlString)
+        XCTAssertNil(request.response)
+    }
+
+    func testUploadStreamRequestHasURLRequest() {
+        // Given
+        let urlString = "https://httpbin.org/"
+        let imageURL = url(forResource: "rainbow", withExtension: "jpg")
+        let imageStream = InputStream(url: imageURL)!
+
+        // When
+        let request = sessionManager.upload(imageStream, to: urlString)
+
+        // Then
+        XCTAssertNotNil(request.request)
+        XCTAssertEqual(request.request?.httpMethod, "POST")
+        XCTAssertEqual(request.request?.url?.absoluteString, urlString)
         XCTAssertNil(request.response)
     }
 }
@@ -108,18 +206,13 @@ class RequestResponseTestCase: BaseTestCase {
 
         let expectation = self.expectation(description: "Bytes download progress should be reported: \(urlString)")
 
-        var byteValues: [(bytes: Int64, totalBytes: Int64, totalBytesExpected: Int64)] = []
-        var progressValues: [(completedUnitCount: Int64, totalUnitCount: Int64)] = []
+        var progressValues: [Double] = []
         var response: DefaultDataResponse?
 
         // When
         Alamofire.request(urlString)
             .downloadProgress { progress in
-                progressValues.append((progress.completedUnitCount, progress.totalUnitCount))
-            }
-            .downloadProgress { bytesRead, totalBytesRead, totalBytesExpectedToRead in
-                let bytes = (bytes: bytesRead, totalBytes: totalBytesRead, totalBytesExpected: totalBytesExpectedToRead)
-                byteValues.append(bytes)
+                progressValues.append(progress.fractionCompleted)
             }
             .response { resp in
                 response = resp
@@ -134,24 +227,17 @@ class RequestResponseTestCase: BaseTestCase {
         XCTAssertNotNil(response?.data)
         XCTAssertNil(response?.error)
 
-        XCTAssertEqual(byteValues.count, progressValues.count)
+        var previousProgress: Double = progressValues.first ?? 0.0
 
-        if byteValues.count == progressValues.count {
-            for (byteValue, progressValue) in zip(byteValues, progressValues) {
-                XCTAssertGreaterThan(byteValue.bytes, 0)
-                XCTAssertEqual(byteValue.totalBytes, progressValue.completedUnitCount)
-                XCTAssertEqual(byteValue.totalBytesExpected, progressValue.totalUnitCount)
-            }
+        for progress in progressValues {
+            XCTAssertGreaterThanOrEqual(progress, previousProgress)
+            previousProgress = progress
         }
 
-        if let lastByteValue = byteValues.last, let lastProgressValue = progressValues.last {
-            let byteValueFractionalCompletion = Double(lastByteValue.totalBytes) / Double(lastByteValue.totalBytesExpected)
-            let progressValueFractionalCompletion = Double(lastProgressValue.0) / Double(lastProgressValue.1)
-
-            XCTAssertEqual(byteValueFractionalCompletion, 1.0)
-            XCTAssertEqual(progressValueFractionalCompletion, 1.0)
+        if let lastProgressValue = progressValues.last {
+            XCTAssertEqual(lastProgressValue, 1.0)
         } else {
-            XCTFail("last item in bytesValues and progressValues should not be nil")
+            XCTFail("last item in progressValues should not be nil")
         }
     }
 
@@ -162,19 +248,14 @@ class RequestResponseTestCase: BaseTestCase {
 
         let expectation = self.expectation(description: "Bytes download progress should be reported: \(urlString)")
 
-        var byteValues: [(bytes: Int64, totalBytes: Int64, totalBytesExpected: Int64)] = []
-        var progressValues: [(completedUnitCount: Int64, totalUnitCount: Int64)] = []
+        var progressValues: [Double] = []
         var accumulatedData = [Data]()
         var response: DefaultDataResponse?
 
         // When
         Alamofire.request(urlString)
             .downloadProgress { progress in
-                progressValues.append((progress.completedUnitCount, progress.totalUnitCount))
-            }
-            .downloadProgress { bytesRead, totalBytesRead, totalBytesExpectedToRead in
-                let bytes = (bytes: bytesRead, totalBytes: totalBytesRead, totalBytesExpected: totalBytesExpectedToRead)
-                byteValues.append(bytes)
+                progressValues.append(progress.fractionCompleted)
             }
             .stream { data in
                 accumulatedData.append(data)
@@ -193,25 +274,17 @@ class RequestResponseTestCase: BaseTestCase {
         XCTAssertNil(response?.error)
         XCTAssertGreaterThanOrEqual(accumulatedData.count, 1)
 
-        XCTAssertEqual(byteValues.count, progressValues.count)
+        var previousProgress: Double = progressValues.first ?? 0.0
 
-        if byteValues.count == progressValues.count {
-            for (byteValue, progressValue) in zip(byteValues, progressValues) {
-                XCTAssertGreaterThan(byteValue.bytes, 0)
-                XCTAssertEqual(byteValue.totalBytes, progressValue.completedUnitCount)
-                XCTAssertEqual(byteValue.totalBytesExpected, progressValue.totalUnitCount)
-            }
+        for progress in progressValues {
+            XCTAssertGreaterThanOrEqual(progress, previousProgress)
+            previousProgress = progress
         }
 
-        if let lastByteValue = byteValues.last, let lastProgressValue = progressValues.last {
-            let byteValueFractionalCompletion = Double(lastByteValue.totalBytes) / Double(lastByteValue.totalBytesExpected)
-            let progressValueFractionalCompletion = Double(lastProgressValue.0) / Double(lastProgressValue.1)
-
-            XCTAssertEqual(byteValueFractionalCompletion, 1.0)
-            XCTAssertEqual(progressValueFractionalCompletion, 1.0)
-            XCTAssertEqual(accumulatedData.reduce(Int64(0)) { $0 + $1.count }, lastByteValue.totalBytes)
+        if let lastProgress = progressValues.last {
+            XCTAssertEqual(lastProgress, 1.0)
         } else {
-            XCTFail("last item in bytesValues and progressValues should not be nil")
+            XCTFail("last item in progressValues should not be nil")
         }
     }
 
@@ -413,6 +486,7 @@ class RequestDebugDescriptionTestCase: BaseTestCase {
 
         let manager = SessionManager(configuration: configuration)
         manager.startRequestsImmediately = false
+
         return manager
     }()
 
@@ -425,6 +499,7 @@ class RequestDebugDescriptionTestCase: BaseTestCase {
 
         let manager = SessionManager(configuration: configuration)
         manager.startRequestsImmediately = false
+
         return manager
     }()
 
@@ -566,7 +641,7 @@ class RequestDebugDescriptionTestCase: BaseTestCase {
     func testMultipartFormDataRequestWithDuplicateHeadersDebugDescription() {
         // Given
         let urlString = "https://httpbin.org/post"
-        let japaneseData = "日本語".data(using: String.Encoding.utf8, allowLossyConversion: false)!
+        let japaneseData = "日本語".data(using: .utf8, allowLossyConversion: false)!
         let expectation = self.expectation(description: "multipart form data encoding should succeed")
 
         var request: Request?

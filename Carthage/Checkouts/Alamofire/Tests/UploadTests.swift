@@ -38,7 +38,7 @@ class UploadFileInitializationTestCase: BaseTestCase {
         // Then
         XCTAssertNotNil(request.request, "request should not be nil")
         XCTAssertEqual(request.request?.httpMethod ?? "", "POST", "request HTTP method should be POST")
-        XCTAssertEqual(request.request?.urlString ?? "", urlString, "request URL string should be equal")
+        XCTAssertEqual(request.request?.url?.absoluteString, urlString, "request URL string should be equal")
         XCTAssertNil(request.response, "response should be nil")
     }
 
@@ -54,7 +54,7 @@ class UploadFileInitializationTestCase: BaseTestCase {
         // Then
         XCTAssertNotNil(request.request, "request should not be nil")
         XCTAssertEqual(request.request?.httpMethod ?? "", "POST", "request HTTP method should be POST")
-        XCTAssertEqual(request.request?.urlString ?? "", urlString, "request URL string should be equal")
+        XCTAssertEqual(request.request?.url?.absoluteString, urlString, "request URL string should be equal")
 
         let authorizationHeader = request.request?.value(forHTTPHeaderField: "Authorization") ?? ""
         XCTAssertEqual(authorizationHeader, "123456", "Authorization header is incorrect")
@@ -76,7 +76,7 @@ class UploadDataInitializationTestCase: BaseTestCase {
         // Then
         XCTAssertNotNil(request.request, "request should not be nil")
         XCTAssertEqual(request.request?.httpMethod ?? "", "POST", "request HTTP method should be POST")
-        XCTAssertEqual(request.request?.urlString ?? "", urlString, "request URL string should be equal")
+        XCTAssertEqual(request.request?.url?.absoluteString, urlString, "request URL string should be equal")
         XCTAssertNil(request.response, "response should be nil")
     }
 
@@ -91,7 +91,7 @@ class UploadDataInitializationTestCase: BaseTestCase {
         // Then
         XCTAssertNotNil(request.request, "request should not be nil")
         XCTAssertEqual(request.request?.httpMethod ?? "", "POST", "request HTTP method should be POST")
-        XCTAssertEqual(request.request?.urlString ?? "", urlString, "request URL string should be equal")
+        XCTAssertEqual(request.request?.url?.absoluteString, urlString, "request URL string should be equal")
 
         let authorizationHeader = request.request?.value(forHTTPHeaderField: "Authorization") ?? ""
         XCTAssertEqual(authorizationHeader, "123456", "Authorization header is incorrect")
@@ -115,7 +115,7 @@ class UploadStreamInitializationTestCase: BaseTestCase {
         // Then
         XCTAssertNotNil(request.request, "request should not be nil")
         XCTAssertEqual(request.request?.httpMethod ?? "", "POST", "request HTTP method should be POST")
-        XCTAssertEqual(request.request?.urlString ?? "", urlString, "request URL string should be equal")
+        XCTAssertEqual(request.request?.url?.absoluteString, urlString, "request URL string should be equal")
         XCTAssertNil(request.response, "response should be nil")
     }
 
@@ -132,7 +132,7 @@ class UploadStreamInitializationTestCase: BaseTestCase {
         // Then
         XCTAssertNotNil(request.request, "request should not be nil")
         XCTAssertEqual(request.request?.httpMethod ?? "", "POST", "request HTTP method should be POST")
-        XCTAssertEqual(request.request?.urlString ?? "", urlString, "request URL string should be equal")
+        XCTAssertEqual(request.request?.url?.absoluteString, urlString, "request URL string should be equal")
 
         let authorizationHeader = request.request?.value(forHTTPHeaderField: "Authorization") ?? ""
         XCTAssertEqual(authorizationHeader, "123456", "Authorization header is incorrect")
@@ -147,7 +147,7 @@ class UploadDataTestCase: BaseTestCase {
     func testUploadDataRequest() {
         // Given
         let urlString = "https://httpbin.org/post"
-        let data = "Lorem ipsum dolor sit amet".data(using: String.Encoding.utf8, allowLossyConversion: false)!
+        let data = "Lorem ipsum dolor sit amet".data(using: .utf8, allowLossyConversion: false)!
 
         let expectation = self.expectation(description: "Upload request should succeed: \(urlString)")
         var response: DefaultDataResponse?
@@ -176,34 +176,23 @@ class UploadDataTestCase: BaseTestCase {
                 text += "Lorem ipsum dolor sit amet, consectetur adipiscing elit. "
             }
 
-            return text.data(using: String.Encoding.utf8, allowLossyConversion: false)!
+            return text.data(using: .utf8, allowLossyConversion: false)!
         }()
 
         let expectation = self.expectation(description: "Bytes upload progress should be reported: \(urlString)")
 
-        var uploadByteValues: [(bytes: Int64, totalBytes: Int64, totalBytesExpected: Int64)] = []
-        var uploadProgressValues: [(completedUnitCount: Int64, totalUnitCount: Int64)] = []
-
-        var downloadByteValues: [(bytes: Int64, totalBytes: Int64, totalBytesExpected: Int64)] = []
-        var downloadProgressValues: [(completedUnitCount: Int64, totalUnitCount: Int64)] = []
+        var uploadProgressValues: [Double] = []
+        var downloadProgressValues: [Double] = []
 
         var response: DefaultDataResponse?
 
         // When
         Alamofire.upload(data, to: urlString)
             .uploadProgress { progress in
-                uploadProgressValues.append((progress.completedUnitCount, progress.totalUnitCount))
-            }
-            .uploadProgress { bytesSent, totalBytesSent, totalBytesExpectedToSend in
-                let bytes = (bytes: bytesSent, totalBytes: totalBytesSent, totalBytesExpected: totalBytesExpectedToSend)
-                uploadByteValues.append(bytes)
+                uploadProgressValues.append(progress.fractionCompleted)
             }
             .downloadProgress { progress in
-                downloadProgressValues.append((progress.completedUnitCount, progress.totalUnitCount))
-            }
-            .downloadProgress { bytesRead, totalBytesRead, totalBytesExpectedToRead in
-                let bytes = (bytes: bytesRead, totalBytes: totalBytesRead, totalBytesExpected: totalBytesExpectedToRead)
-                downloadByteValues.append(bytes)
+                downloadProgressValues.append(progress.fractionCompleted)
             }
             .response { resp in
                 response = resp
@@ -218,43 +207,30 @@ class UploadDataTestCase: BaseTestCase {
         XCTAssertNotNil(response?.data)
         XCTAssertNil(response?.error)
 
-        XCTAssertEqual(uploadByteValues.count, uploadProgressValues.count)
-        XCTAssertEqual(downloadByteValues.count, downloadProgressValues.count)
+        var previousUploadProgress: Double = uploadProgressValues.first ?? 0.0
 
-        if uploadByteValues.count == uploadProgressValues.count {
-            for (byteValue, progressValue) in zip(uploadByteValues, uploadProgressValues) {
-                XCTAssertGreaterThan(byteValue.bytes, 0)
-                XCTAssertEqual(byteValue.totalBytes, progressValue.completedUnitCount)
-                XCTAssertEqual(byteValue.totalBytesExpected, progressValue.totalUnitCount)
-            }
+        for progress in uploadProgressValues {
+            XCTAssertGreaterThanOrEqual(progress, previousUploadProgress)
+            previousUploadProgress = progress
         }
 
-        if let lastUploadByteValue = uploadByteValues.last, let lastUploadProgressValue = uploadProgressValues.last {
-            let byteValueFractionalCompletion = Double(lastUploadByteValue.totalBytes) / Double(lastUploadByteValue.totalBytesExpected)
-            let progressValueFractionalCompletion = Double(lastUploadProgressValue.0) / Double(lastUploadProgressValue.1)
-
-            XCTAssertEqual(byteValueFractionalCompletion, 1.0)
-            XCTAssertEqual(progressValueFractionalCompletion, 1.0)
+        if let lastProgressValue = uploadProgressValues.last {
+            XCTAssertEqual(lastProgressValue, 1.0)
         } else {
-            XCTFail("last item in uploadByteValues and uploadProgressValues should not be nil")
+            XCTFail("last item in uploadProgressValues should not be nil")
         }
 
-        if downloadByteValues.count == downloadProgressValues.count {
-            for (byteValue, progressValue) in zip(downloadByteValues, downloadProgressValues) {
-                XCTAssertGreaterThan(byteValue.bytes, 0)
-                XCTAssertEqual(byteValue.totalBytes, progressValue.completedUnitCount)
-                XCTAssertEqual(byteValue.totalBytesExpected, progressValue.totalUnitCount)
-            }
+        var previousDownloadProgress: Double = downloadProgressValues.first ?? 0.0
+
+        for progress in downloadProgressValues {
+            XCTAssertGreaterThanOrEqual(progress, previousDownloadProgress)
+            previousDownloadProgress = progress
         }
 
-        if let lastDownloadByteValue = downloadByteValues.last, let lastDownloadProgressValue = downloadProgressValues.last {
-            let byteValueFractionalCompletion = Double(lastDownloadByteValue.totalBytes) / Double(lastDownloadByteValue.totalBytesExpected)
-            let progressValueFractionalCompletion = Double(lastDownloadProgressValue.0) / Double(lastDownloadProgressValue.1)
-
-            XCTAssertEqual(byteValueFractionalCompletion, 1.0)
-            XCTAssertEqual(progressValueFractionalCompletion, 1.0)
+        if let lastProgressValue = downloadProgressValues.last {
+            XCTAssertEqual(lastProgressValue, 1.0)
         } else {
-            XCTFail("last item in downloadByteValues and downloadProgressValues should not be nil")
+            XCTFail("last item in downloadProgressValues should not be nil")
         }
     }
 }
@@ -268,7 +244,7 @@ class UploadMultipartFormDataTestCase: BaseTestCase {
     func testThatUploadingMultipartFormDataSetsContentTypeHeader() {
         // Given
         let urlString = "https://httpbin.org/post"
-        let uploadData = "upload_data".data(using: String.Encoding.utf8, allowLossyConversion: false)!
+        let uploadData = "upload_data".data(using: .utf8, allowLossyConversion: false)!
 
         let expectation = self.expectation(description: "multipart form data upload should succeed")
 
@@ -317,8 +293,8 @@ class UploadMultipartFormDataTestCase: BaseTestCase {
     func testThatUploadingMultipartFormDataSucceedsWithDefaultParameters() {
         // Given
         let urlString = "https://httpbin.org/post"
-        let frenchData = "français".data(using: String.Encoding.utf8, allowLossyConversion: false)!
-        let japaneseData = "日本語".data(using: String.Encoding.utf8, allowLossyConversion: false)!
+        let frenchData = "français".data(using: .utf8, allowLossyConversion: false)!
+        let japaneseData = "日本語".data(using: .utf8, allowLossyConversion: false)!
 
         let expectation = self.expectation(description: "multipart form data upload should succeed")
         var response: DefaultDataResponse?
@@ -363,8 +339,8 @@ class UploadMultipartFormDataTestCase: BaseTestCase {
     func testThatUploadingMultipartFormDataBelowMemoryThresholdStreamsFromMemory() {
         // Given
         let urlString = "https://httpbin.org/post"
-        let frenchData = "français".data(using: String.Encoding.utf8, allowLossyConversion: false)!
-        let japaneseData = "日本語".data(using: String.Encoding.utf8, allowLossyConversion: false)!
+        let frenchData = "français".data(using: .utf8, allowLossyConversion: false)!
+        let japaneseData = "日本語".data(using: .utf8, allowLossyConversion: false)!
 
         let expectation = self.expectation(description: "multipart form data upload should succeed")
 
@@ -407,7 +383,7 @@ class UploadMultipartFormDataTestCase: BaseTestCase {
     func testThatUploadingMultipartFormDataBelowMemoryThresholdSetsContentTypeHeader() {
         // Given
         let urlString = "https://httpbin.org/post"
-        let uploadData = "upload data".data(using: String.Encoding.utf8, allowLossyConversion: false)!
+        let uploadData = "upload data".data(using: .utf8, allowLossyConversion: false)!
 
         let expectation = self.expectation(description: "multipart form data upload should succeed")
 
@@ -460,8 +436,8 @@ class UploadMultipartFormDataTestCase: BaseTestCase {
     func testThatUploadingMultipartFormDataAboveMemoryThresholdStreamsFromDisk() {
         // Given
         let urlString = "https://httpbin.org/post"
-        let frenchData = "français".data(using: String.Encoding.utf8, allowLossyConversion: false)!
-        let japaneseData = "日本語".data(using: String.Encoding.utf8, allowLossyConversion: false)!
+        let frenchData = "français".data(using: .utf8, allowLossyConversion: false)!
+        let japaneseData = "日本語".data(using: .utf8, allowLossyConversion: false)!
 
         let expectation = self.expectation(description: "multipart form data upload should succeed")
 
@@ -499,17 +475,14 @@ class UploadMultipartFormDataTestCase: BaseTestCase {
 
         if let streamingFromDisk = streamingFromDisk, let streamFilePath = streamFileURL?.path {
             XCTAssertTrue(streamingFromDisk, "streaming from disk should be true")
-            XCTAssertTrue(
-                FileManager.default.fileExists(atPath: streamFilePath),
-                "stream file path should exist"
-            )
+            XCTAssertFalse(FileManager.default.fileExists(atPath: streamFilePath), "stream file path should not exist")
         }
     }
 
     func testThatUploadingMultipartFormDataAboveMemoryThresholdSetsContentTypeHeader() {
         // Given
         let urlString = "https://httpbin.org/post"
-        let uploadData = "upload data".data(using: String.Encoding.utf8, allowLossyConversion: false)!
+        let uploadData = "upload data".data(using: .utf8, allowLossyConversion: false)!
 
         let expectation = self.expectation(description: "multipart form data upload should succeed")
 
@@ -571,8 +544,8 @@ class UploadMultipartFormDataTestCase: BaseTestCase {
 //        }()
 //
 //        let urlString = "https://httpbin.org/post"
-//        let french = "français".data(using: String.Encoding.utf8, allowLossyConversion: false)!
-//        let japanese = "日本語".data(using: String.Encoding.utf8, allowLossyConversion: false)!
+//        let french = "français".data(using: .utf8, allowLossyConversion: false)!
+//        let japanese = "日本語".data(using: .utf8, allowLossyConversion: false)!
 //
 //        let expectation = self.expectation(description: "multipart form data upload should succeed")
 //
@@ -635,7 +608,7 @@ class UploadMultipartFormDataTestCase: BaseTestCase {
                 loremValues.append("Lorem ipsum dolor sit amet, consectetur adipiscing elit.")
             }
 
-            return loremValues.joined(separator: " ").data(using: String.Encoding.utf8, allowLossyConversion: false)!
+            return loremValues.joined(separator: " ").data(using: .utf8, allowLossyConversion: false)!
         }()
         let loremData2: Data = {
             var loremValues: [String] = []
@@ -643,16 +616,13 @@ class UploadMultipartFormDataTestCase: BaseTestCase {
                 loremValues.append("Lorem ipsum dolor sit amet, nam no graeco recusabo appellantur.")
             }
 
-            return loremValues.joined(separator: " ").data(using: String.Encoding.utf8, allowLossyConversion: false)!
+            return loremValues.joined(separator: " ").data(using: .utf8, allowLossyConversion: false)!
         }()
 
         let expectation = self.expectation(description: "multipart form data upload should succeed")
 
-        var uploadByteValues: [(bytes: Int64, totalBytes: Int64, totalBytesExpected: Int64)] = []
-        var uploadProgressValues: [(completedUnitCount: Int64, totalUnitCount: Int64)] = []
-
-        var downloadByteValues: [(bytes: Int64, totalBytes: Int64, totalBytesExpected: Int64)] = []
-        var downloadProgressValues: [(completedUnitCount: Int64, totalUnitCount: Int64)] = []
+        var uploadProgressValues: [Double] = []
+        var downloadProgressValues: [Double] = []
 
         var response: DefaultDataResponse?
 
@@ -669,18 +639,10 @@ class UploadMultipartFormDataTestCase: BaseTestCase {
                 case .success(let upload, _, _):
                     upload
                         .uploadProgress { progress in
-                            uploadProgressValues.append((progress.completedUnitCount, progress.totalUnitCount))
-                        }
-                        .uploadProgress { bytesSent, totalBytesSent, totalBytesExpectedToSend in
-                            let bytes = (bytes: bytesSent, totalBytes: totalBytesSent, totalBytesExpected: totalBytesExpectedToSend)
-                            uploadByteValues.append(bytes)
+                            uploadProgressValues.append(progress.fractionCompleted)
                         }
                         .downloadProgress { progress in
-                            downloadProgressValues.append((progress.completedUnitCount, progress.totalUnitCount))
-                        }
-                        .downloadProgress { bytesRead, totalBytesRead, totalBytesExpectedToRead in
-                            let bytes = (bytes: bytesRead, totalBytes: totalBytesRead, totalBytesExpected: totalBytesExpectedToRead)
-                            downloadByteValues.append(bytes)
+                            downloadProgressValues.append(progress.fractionCompleted)
                         }
                         .response { resp in
                             response = resp
@@ -700,43 +662,30 @@ class UploadMultipartFormDataTestCase: BaseTestCase {
         XCTAssertNotNil(response?.data)
         XCTAssertNil(response?.error)
 
-        XCTAssertEqual(uploadByteValues.count, uploadProgressValues.count)
-        XCTAssertEqual(downloadByteValues.count, downloadProgressValues.count)
+        var previousUploadProgress: Double = uploadProgressValues.first ?? 0.0
 
-        if uploadByteValues.count == uploadProgressValues.count {
-            for (byteValue, progressValue) in zip(uploadByteValues, uploadProgressValues) {
-                XCTAssertGreaterThan(byteValue.bytes, 0)
-                XCTAssertEqual(byteValue.totalBytes, progressValue.completedUnitCount)
-                XCTAssertEqual(byteValue.totalBytesExpected, progressValue.totalUnitCount)
-            }
+        for progress in uploadProgressValues {
+            XCTAssertGreaterThanOrEqual(progress, previousUploadProgress)
+            previousUploadProgress = progress
         }
 
-        if let lastUploadByteValue = uploadByteValues.last, let lastUploadProgressValue = uploadProgressValues.last {
-            let byteValueFractionalCompletion = Double(lastUploadByteValue.totalBytes) / Double(lastUploadByteValue.totalBytesExpected)
-            let progressValueFractionalCompletion = Double(lastUploadProgressValue.0) / Double(lastUploadProgressValue.1)
-
-            XCTAssertEqual(byteValueFractionalCompletion, 1.0)
-            XCTAssertEqual(progressValueFractionalCompletion, 1.0)
+        if let lastProgressValue = uploadProgressValues.last {
+            XCTAssertEqual(lastProgressValue, 1.0)
         } else {
-            XCTFail("last item in uploadByteValues and uploadProgressValues should not be nil")
+            XCTFail("last item in uploadProgressValues should not be nil")
         }
 
-        if downloadByteValues.count == downloadProgressValues.count {
-            for (byteValue, progressValue) in zip(downloadByteValues, downloadProgressValues) {
-                XCTAssertGreaterThan(byteValue.bytes, 0)
-                XCTAssertEqual(byteValue.totalBytes, progressValue.completedUnitCount)
-                XCTAssertEqual(byteValue.totalBytesExpected, progressValue.totalUnitCount)
-            }
+        var previousDownloadProgress: Double = downloadProgressValues.first ?? 0.0
+
+        for progress in downloadProgressValues {
+            XCTAssertGreaterThanOrEqual(progress, previousDownloadProgress)
+            previousDownloadProgress = progress
         }
 
-        if let lastDownloadByteValue = downloadByteValues.last, let lastDownloadProgressValue = downloadProgressValues.last {
-            let byteValueFractionalCompletion = Double(lastDownloadByteValue.totalBytes) / Double(lastDownloadByteValue.totalBytesExpected)
-            let progressValueFractionalCompletion = Double(lastDownloadProgressValue.0) / Double(lastDownloadProgressValue.1)
-
-            XCTAssertEqual(byteValueFractionalCompletion, 1.0)
-            XCTAssertEqual(progressValueFractionalCompletion, 1.0)
+        if let lastProgressValue = downloadProgressValues.last {
+            XCTAssertEqual(lastProgressValue, 1.0)
         } else {
-            XCTFail("last item in downloadByteValues and downloadProgressValues should not be nil")
+            XCTFail("last item in downloadProgressValues should not be nil")
         }
     }
 }

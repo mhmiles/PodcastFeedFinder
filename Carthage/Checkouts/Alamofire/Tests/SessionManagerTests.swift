@@ -32,14 +32,19 @@ class SessionManagerTestCase: BaseTestCase {
 
     private class HTTPMethodAdapter: RequestAdapter {
         let method: HTTPMethod
+        let throwsError: Bool
 
-        init(method: HTTPMethod) {
+        init(method: HTTPMethod, throwsError: Bool = false) {
             self.method = method
+            self.throwsError = throwsError
         }
 
-        func adapt(_ urlRequest: URLRequest) -> URLRequest {
+        func adapt(_ urlRequest: URLRequest) throws -> URLRequest {
+            guard !throwsError else { throw AFError.invalidURL(url: "") }
+
             var urlRequest = urlRequest
             urlRequest.httpMethod = method.rawValue
+
             return urlRequest
         }
     }
@@ -47,9 +52,17 @@ class SessionManagerTestCase: BaseTestCase {
     private class RequestHandler: RequestAdapter, RequestRetrier {
         var adaptedCount = 0
         var retryCount = 0
-        var shouldApplyAuthorizationHeader = false
+        var retryErrors: [Error] = []
 
-        func adapt(_ urlRequest: URLRequest) -> URLRequest {
+        var shouldApplyAuthorizationHeader = false
+        var throwsErrorOnSecondAdapt = false
+
+        func adapt(_ urlRequest: URLRequest) throws -> URLRequest {
+            if throwsErrorOnSecondAdapt && adaptedCount == 1 {
+                throwsErrorOnSecondAdapt = false
+                throw AFError.invalidURL(url: "")
+            }
+
             var urlRequest = urlRequest
 
             adaptedCount += 1
@@ -63,14 +76,36 @@ class SessionManagerTestCase: BaseTestCase {
             return urlRequest
         }
 
-        func should(_ manager: SessionManager, retry request: Request, with error: Error, completion: RequestRetryCompletion) {
+        func should(_ manager: SessionManager, retry request: Request, with error: Error, completion: @escaping RequestRetryCompletion) {
             retryCount += 1
+            retryErrors.append(error)
 
             if retryCount < 2 {
                 completion(true, 0.0)
             } else {
                 completion(false, 0.0)
             }
+        }
+    }
+
+    private class UploadHandler: RequestAdapter, RequestRetrier {
+        var adaptedCount = 0
+        var retryCount = 0
+        var retryErrors: [Error] = []
+
+        func adapt(_ urlRequest: URLRequest) throws -> URLRequest {
+            adaptedCount += 1
+
+            if adaptedCount == 1 { throw AFError.invalidURL(url: "") }
+
+            return urlRequest
+        }
+
+        func should(_ manager: SessionManager, retry request: Request, with error: Error, completion: @escaping RequestRetryCompletion) {
+            retryCount += 1
+            retryErrors.append(error)
+
+            completion(true, 0.0)
         }
     }
 
@@ -195,7 +230,7 @@ class SessionManagerTestCase: BaseTestCase {
                     return "watchOS"
                 #elseif os(tvOS)
                     return "tvOS"
-                #elseif os(OSX)
+                #elseif os(macOS)
                     return "OS X"
                 #elseif os(Linux)
                     return "Linux"
@@ -264,7 +299,7 @@ class SessionManagerTestCase: BaseTestCase {
         manager = nil
 
         // Then
-        XCTAssertTrue(request?.task.state == .suspended, "request task state should be '.Suspended'")
+        XCTAssertTrue(request?.task?.state == .suspended, "request task state should be '.Suspended'")
         XCTAssertNil(manager, "manager should be nil")
     }
 
@@ -282,9 +317,162 @@ class SessionManagerTestCase: BaseTestCase {
         manager = nil
 
         // Then
-        let state = request.task.state
+        let state = request.task?.state
         XCTAssertTrue(state == .canceling || state == .completed, "state should be .Canceling or .Completed")
         XCTAssertNil(manager, "manager should be nil")
+    }
+
+    // MARK: Tests - Bad Requests
+
+    func testThatDataRequestWithInvalidURLStringThrowsResponseHandlerError() {
+        // Given
+        let sessionManager = SessionManager()
+        let expectation = self.expectation(description: "Request should fail with error")
+
+        var response: DefaultDataResponse?
+
+        // When
+        sessionManager.request("https://httpbin.org/get/äëïöü").response { resp in
+            response = resp
+            expectation.fulfill()
+        }
+
+        waitForExpectations(timeout: timeout, handler: nil)
+
+        // Then
+        XCTAssertNil(response?.request)
+        XCTAssertNil(response?.response)
+        XCTAssertNotNil(response?.data)
+        XCTAssertEqual(response?.data?.count, 0)
+        XCTAssertNotNil(response?.error)
+
+        if let error = response?.error as? AFError {
+            XCTAssertTrue(error.isInvalidURLError)
+            XCTAssertEqual(error.urlConvertible as? String, "https://httpbin.org/get/äëïöü")
+        } else {
+            XCTFail("error should not be nil")
+        }
+    }
+
+    func testThatDownloadRequestWithInvalidURLStringThrowsResponseHandlerError() {
+        // Given
+        let sessionManager = SessionManager()
+        let expectation = self.expectation(description: "Download should fail with error")
+
+        var response: DefaultDownloadResponse?
+
+        // When
+        sessionManager.download("https://httpbin.org/get/äëïöü").response { resp in
+            response = resp
+            expectation.fulfill()
+        }
+
+        waitForExpectations(timeout: timeout, handler: nil)
+
+        // Then
+        XCTAssertNil(response?.request)
+        XCTAssertNil(response?.response)
+        XCTAssertNil(response?.temporaryURL)
+        XCTAssertNil(response?.destinationURL)
+        XCTAssertNil(response?.resumeData)
+        XCTAssertNotNil(response?.error)
+
+        if let error = response?.error as? AFError {
+            XCTAssertTrue(error.isInvalidURLError)
+            XCTAssertEqual(error.urlConvertible as? String, "https://httpbin.org/get/äëïöü")
+        } else {
+            XCTFail("error should not be nil")
+        }
+    }
+
+    func testThatUploadDataRequestWithInvalidURLStringThrowsResponseHandlerError() {
+        // Given
+        let sessionManager = SessionManager()
+        let expectation = self.expectation(description: "Upload should fail with error")
+
+        var response: DefaultDataResponse?
+
+        // When
+        sessionManager.upload(Data(), to: "https://httpbin.org/get/äëïöü").response { resp in
+            response = resp
+            expectation.fulfill()
+        }
+
+        waitForExpectations(timeout: timeout, handler: nil)
+
+        // Then
+        XCTAssertNil(response?.request)
+        XCTAssertNil(response?.response)
+        XCTAssertNotNil(response?.data)
+        XCTAssertEqual(response?.data?.count, 0)
+        XCTAssertNotNil(response?.error)
+
+        if let error = response?.error as? AFError {
+            XCTAssertTrue(error.isInvalidURLError)
+            XCTAssertEqual(error.urlConvertible as? String, "https://httpbin.org/get/äëïöü")
+        } else {
+            XCTFail("error should not be nil")
+        }
+    }
+
+    func testThatUploadFileRequestWithInvalidURLStringThrowsResponseHandlerError() {
+        // Given
+        let sessionManager = SessionManager()
+        let expectation = self.expectation(description: "Upload should fail with error")
+
+        var response: DefaultDataResponse?
+
+        // When
+        sessionManager.upload(URL(fileURLWithPath: "/invalid"), to: "https://httpbin.org/get/äëïöü").response { resp in
+            response = resp
+            expectation.fulfill()
+        }
+
+        waitForExpectations(timeout: timeout, handler: nil)
+
+        // Then
+        XCTAssertNil(response?.request)
+        XCTAssertNil(response?.response)
+        XCTAssertNotNil(response?.data)
+        XCTAssertEqual(response?.data?.count, 0)
+        XCTAssertNotNil(response?.error)
+
+        if let error = response?.error as? AFError {
+            XCTAssertTrue(error.isInvalidURLError)
+            XCTAssertEqual(error.urlConvertible as? String, "https://httpbin.org/get/äëïöü")
+        } else {
+            XCTFail("error should not be nil")
+        }
+    }
+
+    func testThatUploadStreamRequestWithInvalidURLStringThrowsResponseHandlerError() {
+        // Given
+        let sessionManager = SessionManager()
+        let expectation = self.expectation(description: "Upload should fail with error")
+
+        var response: DefaultDataResponse?
+
+        // When
+        sessionManager.upload(InputStream(data: Data()), to: "https://httpbin.org/get/äëïöü").response { resp in
+            response = resp
+            expectation.fulfill()
+        }
+
+        waitForExpectations(timeout: timeout, handler: nil)
+
+        // Then
+        XCTAssertNil(response?.request)
+        XCTAssertNil(response?.response)
+        XCTAssertNotNil(response?.data)
+        XCTAssertEqual(response?.data?.count, 0)
+        XCTAssertNotNil(response?.error)
+
+        if let error = response?.error as? AFError {
+            XCTAssertTrue(error.isInvalidURLError)
+            XCTAssertEqual(error.urlConvertible as? String, "https://httpbin.org/get/äëïöü")
+        } else {
+            XCTFail("error should not be nil")
+        }
     }
 
     // MARK: Tests - Request Adapter
@@ -301,7 +489,7 @@ class SessionManagerTestCase: BaseTestCase {
         let request = sessionManager.request("https://httpbin.org/get")
 
         // Then
-        XCTAssertEqual(request.task.originalRequest?.httpMethod, adapter.method.rawValue)
+        XCTAssertEqual(request.task?.originalRequest?.httpMethod, adapter.method.rawValue)
     }
 
     func testThatSessionManagerCallsRequestAdapterWhenCreatingDownloadRequest() {
@@ -317,7 +505,7 @@ class SessionManagerTestCase: BaseTestCase {
         let request = sessionManager.download("https://httpbin.org/get", to: destination)
 
         // Then
-        XCTAssertEqual(request.task.originalRequest?.httpMethod, adapter.method.rawValue)
+        XCTAssertEqual(request.task?.originalRequest?.httpMethod, adapter.method.rawValue)
     }
 
     func testThatSessionManagerCallsRequestAdapterWhenCreatingUploadRequestWithData() {
@@ -332,7 +520,7 @@ class SessionManagerTestCase: BaseTestCase {
         let request = sessionManager.upload("data".data(using: .utf8)!, to: "https://httpbin.org/post")
 
         // Then
-        XCTAssertEqual(request.task.originalRequest?.httpMethod, adapter.method.rawValue)
+        XCTAssertEqual(request.task?.originalRequest?.httpMethod, adapter.method.rawValue)
     }
 
     func testThatSessionManagerCallsRequestAdapterWhenCreatingUploadRequestWithFile() {
@@ -348,7 +536,7 @@ class SessionManagerTestCase: BaseTestCase {
         let request = sessionManager.upload(fileURL, to: "https://httpbin.org/post")
 
         // Then
-        XCTAssertEqual(request.task.originalRequest?.httpMethod, adapter.method.rawValue)
+        XCTAssertEqual(request.task?.originalRequest?.httpMethod, adapter.method.rawValue)
     }
 
     func testThatSessionManagerCallsRequestAdapterWhenCreatingUploadRequestWithInputStream() {
@@ -364,7 +552,27 @@ class SessionManagerTestCase: BaseTestCase {
         let request = sessionManager.upload(inputStream, to: "https://httpbin.org/post")
 
         // Then
-        XCTAssertEqual(request.task.originalRequest?.httpMethod, adapter.method.rawValue)
+        XCTAssertEqual(request.task?.originalRequest?.httpMethod, adapter.method.rawValue)
+    }
+
+    func testThatRequestAdapterErrorThrowsResponseHandlerError() {
+        // Given
+        let adapter = HTTPMethodAdapter(method: .post, throwsError: true)
+
+        let sessionManager = SessionManager()
+        sessionManager.adapter = adapter
+        sessionManager.startRequestsImmediately = false
+
+        // When
+        let request = sessionManager.request("https://httpbin.org/get")
+
+        // Then
+        if let error = request.delegate.error as? AFError {
+            XCTAssertTrue(error.isInvalidURLError)
+            XCTAssertEqual(error.urlConvertible as? String, "")
+        } else {
+            XCTFail("error should not be nil")
+        }
     }
 
     // MARK: Tests - Request Retrier
@@ -381,7 +589,7 @@ class SessionManagerTestCase: BaseTestCase {
         var response: DataResponse<Any>?
 
         // When
-        sessionManager.request("https://httpbin.org/basic-auth/user/password")
+        let request = sessionManager.request("https://httpbin.org/basic-auth/user/password")
             .validate()
             .responseJSON { jsonResponse in
                 response = jsonResponse
@@ -393,12 +601,15 @@ class SessionManagerTestCase: BaseTestCase {
         // Then
         XCTAssertEqual(handler.adaptedCount, 2)
         XCTAssertEqual(handler.retryCount, 2)
+        XCTAssertEqual(request.retryCount, 1)
         XCTAssertEqual(response?.result.isSuccess, false)
     }
 
-    func testThatSessionManagerCallsAdapterWhenRequestIsRetried() {
+    func testThatSessionManagerCallsRequestRetrierWhenRequestInitiallyEncountersAdaptError() {
         // Given
         let handler = RequestHandler()
+        handler.adaptedCount = 1
+        handler.throwsErrorOnSecondAdapt = true
         handler.shouldApplyAuthorizationHeader = true
 
         let sessionManager = SessionManager()
@@ -422,6 +633,141 @@ class SessionManagerTestCase: BaseTestCase {
         XCTAssertEqual(handler.adaptedCount, 2)
         XCTAssertEqual(handler.retryCount, 1)
         XCTAssertEqual(response?.result.isSuccess, true)
+
+        handler.retryErrors.forEach { XCTAssertFalse($0 is AdaptError) }
+    }
+
+    func testThatSessionManagerCallsRequestRetrierWhenDownloadInitiallyEncountersAdaptError() {
+        // Given
+        let handler = RequestHandler()
+        handler.adaptedCount = 1
+        handler.throwsErrorOnSecondAdapt = true
+        handler.shouldApplyAuthorizationHeader = true
+
+        let sessionManager = SessionManager()
+        sessionManager.adapter = handler
+        sessionManager.retrier = handler
+
+        let expectation = self.expectation(description: "request should eventually fail")
+        var response: DownloadResponse<Any>?
+
+        let destination: DownloadRequest.DownloadFileDestination = { _, _ in
+            let fileURL = self.testDirectoryURL.appendingPathComponent("test-output.json")
+            return (fileURL, [.removePreviousFile])
+        }
+
+        // When
+        sessionManager.download("https://httpbin.org/basic-auth/user/password", to: destination)
+            .validate()
+            .responseJSON { jsonResponse in
+                response = jsonResponse
+                expectation.fulfill()
+            }
+
+        waitForExpectations(timeout: timeout, handler: nil)
+
+        // Then
+        XCTAssertEqual(handler.adaptedCount, 2)
+        XCTAssertEqual(handler.retryCount, 1)
+        XCTAssertEqual(response?.result.isSuccess, true)
+
+        handler.retryErrors.forEach { XCTAssertFalse($0 is AdaptError) }
+    }
+
+    func testThatSessionManagerCallsRequestRetrierWhenUploadInitiallyEncountersAdaptError() {
+        // Given
+        let handler = UploadHandler()
+
+        let sessionManager = SessionManager()
+        sessionManager.adapter = handler
+        sessionManager.retrier = handler
+
+        let expectation = self.expectation(description: "request should eventually fail")
+        var response: DataResponse<Any>?
+
+        let uploadData = "upload data".data(using: .utf8, allowLossyConversion: false)!
+
+        // When
+        sessionManager.upload(uploadData, to: "https://httpbin.org/post")
+            .validate()
+            .responseJSON { jsonResponse in
+                response = jsonResponse
+                expectation.fulfill()
+            }
+
+        waitForExpectations(timeout: timeout, handler: nil)
+
+        // Then
+        XCTAssertEqual(handler.adaptedCount, 2)
+        XCTAssertEqual(handler.retryCount, 1)
+        XCTAssertEqual(response?.result.isSuccess, true)
+
+        handler.retryErrors.forEach { XCTAssertFalse($0 is AdaptError) }
+    }
+
+    func testThatSessionManagerCallsAdapterWhenRequestIsRetried() {
+        // Given
+        let handler = RequestHandler()
+        handler.shouldApplyAuthorizationHeader = true
+
+        let sessionManager = SessionManager()
+        sessionManager.adapter = handler
+        sessionManager.retrier = handler
+
+        let expectation = self.expectation(description: "request should eventually fail")
+        var response: DataResponse<Any>?
+
+        // When
+        let request = sessionManager.request("https://httpbin.org/basic-auth/user/password")
+            .validate()
+            .responseJSON { jsonResponse in
+                response = jsonResponse
+                expectation.fulfill()
+            }
+
+        waitForExpectations(timeout: timeout, handler: nil)
+
+        // Then
+        XCTAssertEqual(handler.adaptedCount, 2)
+        XCTAssertEqual(handler.retryCount, 1)
+        XCTAssertEqual(request.retryCount, 1)
+        XCTAssertEqual(response?.result.isSuccess, true)
+    }
+
+    func testThatRequestAdapterErrorThrowsResponseHandlerErrorWhenRequestIsRetried() {
+        // Given
+        let handler = RequestHandler()
+        handler.throwsErrorOnSecondAdapt = true
+
+        let sessionManager = SessionManager()
+        sessionManager.adapter = handler
+        sessionManager.retrier = handler
+
+        let expectation = self.expectation(description: "request should eventually fail")
+        var response: DataResponse<Any>?
+
+        // When
+        let request = sessionManager.request("https://httpbin.org/basic-auth/user/password")
+            .validate()
+            .responseJSON { jsonResponse in
+                response = jsonResponse
+                expectation.fulfill()
+            }
+
+        waitForExpectations(timeout: timeout, handler: nil)
+
+        // Then
+        XCTAssertEqual(handler.adaptedCount, 1)
+        XCTAssertEqual(handler.retryCount, 1)
+        XCTAssertEqual(request.retryCount, 0)
+        XCTAssertEqual(response?.result.isSuccess, false)
+
+        if let error = response?.result.error as? AFError {
+            XCTAssertTrue(error.isInvalidURLError)
+            XCTAssertEqual(error.urlConvertible as? String, "")
+        } else {
+            XCTFail("error should not be nil")
+        }
     }
 }
 

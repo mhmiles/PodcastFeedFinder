@@ -12,8 +12,8 @@ import XCTest
 class PodcastFeedFinderTests: XCTestCase {
     
     let feedFinder = PodcastFeedFinder()
-    let testURL = URL(string: "https://itunes.apple.com/us/podcast/truehoop/id974354079?mt=2#episodeGuid=http%3A%2F%2Fwww.espn.com%2Fespnradio%2Fpodcast%2F_%2Fid%2F17204351")!
-    let testFeedURL = URL(string: "http://www.espn.com/espnradio/podcast/feeds/itunes/podCast?id=12426375")
+    let testURL = URL(string: "https://itunes.apple.com/us/podcast/pti/id147232181?mt=2#episodeGuid=http%3A%2F%2Fwww.espn.com%2Fespnradio%2Fpodcast%3Fid%3D19353544")!
+    let testFeedURL = URL(string: "http://joeroganexp.joerogan.libsynpro.com/rss")
     
     override func setUp() {
         super.setUp()
@@ -49,11 +49,13 @@ class PodcastFeedFinderTests: XCTestCase {
         
         try! feedFinder.getMediaURLForPodcastLink(testURL) { (result) in
             expectation.fulfill()
-            XCTAssertEqual(result.mediaURL.absoluteString, "http://play.podtrac.com/espn-truehoop/c.espnradio.com/s:J1X3L/audio/2908650/truehooptv_2016-08-02-181350.64k.mp3?ad_params=zones%3DPreroll%2CPreroll2%2CMidroll%2CMidroll2%2CMidroll3%2CMidroll4%2CMidroll5%2CMidroll6%2CPostroll%2CPostroll2%7Cstation_id%3D2776")
-            XCTAssertEqual(result.artworkURL.absoluteString, "http://a2.espncdn.com/combiner/i?img=i/espnradio/logos/truehoop_1x1.png?w=1400&h=1400")
-            XCTAssertEqual(result.duration, 3187.0)
-            XCTAssertEqual(result.artist, "TrueHoop")
-            XCTAssertEqual(result.title, "Refresh Memory: Part 1: 8/3/16")
+            XCTAssertEqual(result.mediaURL.absoluteString, "http://play.podtrac.com/espn-pti/c.espnradio.com/s:J1X3L/audio/3352723/pti_2017-05-10-190923.64k.mp3?ad_params=zones%3DPreroll%2CPreroll2%2CMidroll%2CMidroll2%2CMidroll3%2CMidroll4%2CMidroll5%2CMidroll6%2CPostroll%2CPostroll2%7Cstation_id%3D674")
+          
+            XCTAssertEqual(result.artworkURL.absoluteString, "http://a.espncdn.com/i/espnradio/stations/espn/podcasts/pti_1400.jpg")
+          
+            XCTAssertEqual(result.duration, 1308.0)
+            XCTAssertEqual(result.artist, "PTI")
+            XCTAssertEqual(result.title, "All On Harden? : 5/10/17")
         }
         
         waitForExpectations(timeout: 5.0) { (error) in
@@ -64,7 +66,7 @@ class PodcastFeedFinderTests: XCTestCase {
     func testGetFeedByPodcastName() {
         let expectation = self.expectation(description: "Getting feed URL for test URL by podcast name")
         
-        feedFinder.getFeedURLForPodcastName("TrueHoop") { (feedURL) in
+        feedFinder.getFeedURLForPodcastName("The Joe Rogan Experience") { (feedURL) in
             expectation.fulfill()
             XCTAssertEqual(feedURL, self.testFeedURL)
         }
