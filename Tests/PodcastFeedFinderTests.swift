@@ -12,7 +12,7 @@ import XCTest
 class PodcastFeedFinderTests: XCTestCase {
     
     let feedFinder = PodcastFeedFinder()
-    let testURL = URL(string: "https://itunes.apple.com/us/podcast/pti/id147232181?mt=2#episodeGuid=http%3A%2F%2Fwww.espn.com%2Fespnradio%2Fpodcast%3Fid%3D19353544")!
+    let testURL = URL(string: "https://itunes.apple.com/us/podcast/ctrl-walt-delete/id1043196031?mt=2&i=1000385297253")!
     let testFeedURL = URL(string: "http://joeroganexp.joerogan.libsynpro.com/rss")
     
     override func setUp() {
