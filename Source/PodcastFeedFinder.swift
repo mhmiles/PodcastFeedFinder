@@ -47,7 +47,7 @@ open class PodcastFeedFinder {
             return
         }
         
-        let episodeGuid = fragment.substring(from: fragment.characters.index(fragment.startIndex, offsetBy: "episodeGuid=".characters.count))
+        let episodeGuid = fragment[fragment.index(fragment.startIndex, offsetBy: "episodeGuid=".characters.count)...]
         
         getFeedURLForPodcastLink(link) { (feedURL) in
             Alamofire.request(feedURL, method: .get).responseData(completionHandler: { (response) in
@@ -83,7 +83,7 @@ open class PodcastFeedFinder {
         let lastComponent = url.lastPathComponent
         
         if lastComponent.hasPrefix("id") {
-            return lastComponent.substring(from: lastComponent.characters.index(lastComponent.startIndex, offsetBy: 2))
+            return String(lastComponent[lastComponent.index(lastComponent.startIndex, offsetBy: 2)...])
         }
         
         throw FeedFinderError.podcastIDNotFound
