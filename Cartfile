@@ -1,2 +1,2 @@
 github "Alamofire/Alamofire" ~> 4.0
-github "mhmiles/Fuzi" "master"
+github "mhmiles/Fuzi" "disable-code-coverage"
