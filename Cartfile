@@ -1,2 +1,2 @@
 github "Alamofire/Alamofire" ~> 4.0
-github "cezheng/Fuzi" "master"
+github "cezheng/Fuzi" ~> 2.0
